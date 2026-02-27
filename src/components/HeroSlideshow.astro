@@ -67,8 +67,42 @@ const { images, interval = 5000 } = Astro.props;
       this.interval = parseInt(container.dataset.interval || '5000');
 
       if (this.slides.length > 1) {
+        this.shuffleSlides();
         this.init();
       }
+    }
+
+    // Fisher-Yates shuffle for random order on each page load
+    shuffleSlides() {
+      const indices = this.slides.map((_, i) => i);
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+
+      // Reorder slides in DOM
+      const parent = this.slides[0].parentElement;
+      if (parent) {
+        indices.forEach(i => parent.appendChild(this.slides[i]));
+        // Re-query after reordering
+        this.slides = Array.from(this.container.querySelectorAll('.slide'));
+      }
+
+      // Reset all slides, show first
+      this.slides.forEach((slide, i) => {
+        slide.classList.remove('opacity-100', 'opacity-0');
+        slide.classList.add(i === 0 ? 'opacity-100' : 'opacity-0');
+        slide.dataset.index = String(i);
+      });
+
+      // Reset dots
+      this.dots.forEach((dot, i) => {
+        dot.classList.remove('bg-white', 'scale-110', 'bg-white/50');
+        dot.classList.add(i === 0 ? 'bg-white' : 'bg-white/50');
+        if (i === 0) dot.classList.add('scale-110');
+      });
+
+      this.currentIndex = 0;
     }
 
     init() {
