@@ -1,0 +1,133 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Home">
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-navy to-blue-900 text-white py-20 md:py-32">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="max-w-3xl">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white">
+          Hands-on STEM education that builds the future.
+        </h1>
+        <p class="text-xl md:text-2xl text-gray-200 mb-8">
+          Join our community of engineers, coders, and makers in Gilbert, AZ—and beyond.
+        </p>
+        <div class="flex flex-wrap gap-4">
+          <a href="/programs" class="bg-brand-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-400 transition-colors">
+            Join a Program
+          </a>
+          <a href="/donate" class="bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors">
+            Donate
+          </a>
+          <a href="/contact" class="border-2 border-white text-white px-6 py-3 rounded-lg font-medium hover:bg-white hover:text-navy transition-colors">
+            Become a Mentor
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What We Do -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      <h2 class="text-3xl md:text-4xl font-bold mb-6">What We Do</h2>
+      <div class="grid md:grid-cols-2 gap-8 items-center">
+        <div>
+          <p class="text-lg text-gray-700 mb-4">
+            We're a nonprofit (501c3) focused on teaching real-world STEM skills through robotics, aeronautics, and hands-on engineering projects. Students work directly with mentors from industry and learn using modern tools and technologies.
+          </p>
+          <p class="text-lg font-semibold text-navy">
+            Not just education—transformation.
+          </p>
+          <p class="text-gray-700">
+            Our alumni go on to top universities and careers in engineering, science, and tech.
+          </p>
+        </div>
+        <div class="bg-gray-100 rounded-xl p-8 text-center">
+          <img src="/logo.png" alt="STEM+C" class="h-32 mx-auto" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why STEM+C -->
+  <section class="py-16 md:py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4">
+      <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center">Why STEM+C?</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+          <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Real Engineering Tools & Tech</h3>
+          <p class="text-gray-600">Work with industry-standard tools, CAD software, 3D printers, and control systems.</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+          <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Inclusive, Community-Based Teams</h3>
+          <p class="text-gray-600">Open to students from any school or homeschool in the greater Gilbert area.</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+          <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Learn by Doing (and Failing!)</h3>
+          <p class="text-gray-600">We encourage trial, error, iteration, and exploration. Learning is messy—and that's good.</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+          <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Proven Pathways to College & Careers</h3>
+          <p class="text-gray-600">Alumni have gone to Columbia, ASU, UofA and work at Intel, AMD, HP, and more.</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+          <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Mentorship from STEM Professionals</h3>
+          <p class="text-gray-600">Work directly with mentors from industry who guide and inspire the next generation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Join the Team -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4 text-center">
+      <h2 class="text-3xl md:text-4xl font-bold mb-6">Join the Team</h2>
+      <p class="text-xl text-gray-700 max-w-2xl mx-auto mb-8">
+        We're always looking for curious students, committed mentors, and generous sponsors. Whether you're just starting your STEM journey or looking to give back—we'd love to connect.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <a href="/programs" class="bg-navy text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-900 transition-colors">
+          Student Programs
+        </a>
+        <a href="/contact" class="bg-brand-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-400 transition-colors">
+          Become a Mentor
+        </a>
+        <a href="/donate" class="bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors">
+          Support Us
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

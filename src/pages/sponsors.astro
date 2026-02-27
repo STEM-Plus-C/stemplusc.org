@@ -1,0 +1,177 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Sponsor data - add logos to public/sponsors/ folder
+const sponsors = {
+  platinum: [
+    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
+  ],
+  gold: [
+    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
+  ],
+  silver: [
+    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
+  ],
+  bronze: [
+    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
+  ],
+  supporters: [
+    // "Supporter Name",
+  ],
+};
+
+const hasPlatinum = sponsors.platinum.length > 0;
+const hasGold = sponsors.gold.length > 0;
+const hasSilver = sponsors.silver.length > 0;
+const hasBronze = sponsors.bronze.length > 0;
+const hasSupporters = sponsors.supporters.length > 0;
+const hasAnySponsors = hasPlatinum || hasGold || hasSilver || hasBronze || hasSupporters;
+---
+
+<BaseLayout title="Our Sponsors" description="Thank you to our generous sponsors who make STEM+C programs possible.">
+  <!-- Hero -->
+  <section class="bg-navy text-white py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">Our Sponsors</h1>
+      <p class="text-xl text-gray-200 max-w-2xl">
+        Thank you to our generous sponsors who make our programs possible.
+      </p>
+    </div>
+  </section>
+
+  <!-- Sponsors Content -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      {hasAnySponsors ? (
+        <div class="space-y-16">
+          {hasPlatinum && (
+            <div>
+              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Platinum Sponsors</h2>
+              <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {sponsors.platinum.map((sponsor) => (
+                  <a
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener"
+                    class="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
+                  >
+                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-24 w-auto" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasGold && (
+            <div>
+              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Gold Sponsors</h2>
+              <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {sponsors.gold.map((sponsor) => (
+                  <a
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener"
+                    class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
+                  >
+                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-16 w-auto" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasSilver && (
+            <div>
+              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Silver Sponsors</h2>
+              <div class="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {sponsors.silver.map((sponsor) => (
+                  <a
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener"
+                    class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
+                  >
+                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-12 w-auto" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasBronze && (
+            <div>
+              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Bronze Sponsors</h2>
+              <div class="grid sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                {sponsors.bronze.map((sponsor) => (
+                  <a
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener"
+                    class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
+                  >
+                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-10 w-auto" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasSupporters && (
+            <div>
+              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Community Supporters</h2>
+              <div class="flex flex-wrap justify-center gap-4">
+                {sponsors.supporters.map((name) => (
+                  <span class="bg-gray-100 px-4 py-2 rounded-full text-navy font-medium">{name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div class="text-center py-12">
+          <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-navy mb-4">Become Our First Sponsor</h2>
+          <p class="text-gray-600 max-w-md mx-auto mb-8">
+            Your company could be featured here! Partner with STEM+C to support the next generation of engineers.
+          </p>
+          <a
+            href="/sponsorship.pdf"
+            target="_blank"
+            class="inline-block bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors"
+          >
+            View Sponsorship Opportunities
+          </a>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-16 md:py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4 text-center">
+      <h2 class="text-3xl font-bold mb-6">Interested in Sponsoring?</h2>
+      <p class="text-lg text-gray-700 max-w-2xl mx-auto mb-8">
+        Partner with STEM+C to support hands-on STEM education in the Gilbert community. Download our sponsorship packet to learn about opportunities and benefits.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <a
+          href="/sponsorship.pdf"
+          target="_blank"
+          class="bg-navy text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-900 transition-colors"
+        >
+          Download Sponsorship Packet
+        </a>
+        <a
+          href="/contact"
+          class="border-2 border-navy text-navy px-6 py-3 rounded-lg font-medium hover:bg-navy hover:text-white transition-colors"
+        >
+          Contact Us
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

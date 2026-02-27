@@ -1,0 +1,56 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="bg-navy text-white">
+  <div class="max-w-6xl mx-auto px-4 py-12">
+    <div class="grid md:grid-cols-4 gap-8">
+      <!-- Logo & About -->
+      <div class="md:col-span-2">
+        <img src="/logo.png" alt="STEM+C" class="h-16 w-auto mb-4 brightness-0 invert" />
+        <p class="text-gray-300 text-sm max-w-md">
+          STEM+C is a 501(c)(3) nonprofit based in Gilbert, Arizona, focused on teaching real-world STEM skills through robotics, aeronautics, and hands-on engineering projects.
+        </p>
+        <p class="text-gray-400 text-sm mt-2">EIN: 83-3523903</p>
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+        <h3 class="font-semibold mb-4 text-white">Quick Links</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="/about" class="text-gray-300 hover:text-white transition-colors">About Us</a></li>
+          <li><a href="/programs" class="text-gray-300 hover:text-white transition-colors">Programs</a></li>
+          <li><a href="/donate" class="text-gray-300 hover:text-white transition-colors">Donate</a></li>
+          <li><a href="/contact" class="text-gray-300 hover:text-white transition-colors">Contact</a></li>
+        </ul>
+      </div>
+
+      <!-- Connect -->
+      <div>
+        <h3 class="font-semibold mb-4 text-white">Connect</h3>
+        <ul class="space-y-2 text-sm">
+          <li>
+            <a href="mailto:info@stemplus.org" class="text-gray-300 hover:text-white transition-colors">
+              info@stemplus.org
+            </a>
+          </li>
+          <li>
+            <a href="https://www.instagram.com/_tiedyesamurai/" target="_blank" rel="noopener" class="text-gray-300 hover:text-white transition-colors">
+              Instagram
+            </a>
+          </li>
+          <li>
+            <a href="https://www.youtube.com/@Tiedyesamurai" target="_blank" rel="noopener" class="text-gray-300 hover:text-white transition-colors">
+              YouTube
+            </a>
+          </li>
+        </ul>
+        <p class="text-gray-400 text-sm mt-4">Gilbert, Arizona</p>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-700 mt-8 pt-8 text-center text-sm text-gray-400">
+      <p>&copy; {currentYear} STEM+C Creative Robotics. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
