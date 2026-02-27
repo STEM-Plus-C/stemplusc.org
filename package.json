@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "deploy": "npm run build && rsync -avz --delete dist/ stemplus@vda3300.is.cc:domains/stemplusc.org/public_html/"
   },
   "dependencies": {
     "@astrojs/tailwind": "^5.1.0",
