@@ -2,24 +2,24 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 
-// Import images by category
+// Import images by category (case-insensitive extensions)
 const galleryImages = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/gallery/*.{jpg,jpeg,png,webp}',
+  '../assets/images/gallery/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 const teamImages = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/team/*.{jpg,jpeg,png,webp}',
+  '../assets/images/team/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 const robotImages = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/robots/*.{jpg,jpeg,png,webp}',
+  '../assets/images/robots/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 
 const getImages = (imports: Record<string, { default: ImageMetadata }>) => {
   return Object.entries(imports).map(([path, module]) => ({
     src: module.default,
-    alt: path.split('/').pop()?.replace(/\.(jpg|jpeg|png|webp)$/, '').replace(/[-_]/g, ' ') || 'Photo',
+    alt: path.split('/').pop()?.replace(/\.(jpg|jpeg|png|webp)$/i, '').replace(/[-_]/g, ' ') || 'Photo',
   }));
 };
 

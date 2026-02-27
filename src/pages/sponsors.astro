@@ -2,21 +2,21 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 
-// Auto-discover sponsor logos by tier
+// Auto-discover sponsor logos by tier (case-insensitive extensions)
 const foundingLogos = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,svg}',
+  '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
 const premiumLogos = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,svg}',
+  '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
 const grandLogos = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,svg}',
+  '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
 const teamLogos = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,svg}',
+  '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
 
@@ -25,7 +25,7 @@ const getSponsors = (logos: Record<string, { default: ImageMetadata }>) => {
   return Object.entries(logos).map(([path, module]) => {
     const filename = path.split('/').pop() || '';
     const name = filename
-      .replace(/\.(jpg|jpeg|png|webp|svg)$/, '')
+      .replace(/\.(jpg|jpeg|png|webp|svg)$/i, '')
       .replace(/-/g, ' ')
       .replace(/_/g, ' ');
     return {

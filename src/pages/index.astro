@@ -3,16 +3,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import HeroSlideshow from '../components/HeroSlideshow.astro';
 
-// Import hero images dynamically
+// Import hero images dynamically (case-insensitive extensions)
 const heroImages = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/hero/*.{jpg,jpeg,png,webp}',
+  '../assets/images/hero/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 const heroSlides = Object.values(heroImages).map(m => m.default);
 
-// Import gallery preview images
+// Import gallery preview images (case-insensitive extensions)
 const galleryImages = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/images/gallery/*.{jpg,jpeg,png,webp}',
+  '../assets/images/gallery/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 const galleryPreview = Object.values(galleryImages).slice(0, 4).map(m => m.default);
