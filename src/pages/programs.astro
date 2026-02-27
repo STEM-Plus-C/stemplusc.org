@@ -13,17 +13,44 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
+  <!-- FIRST Partnership -->
+  <section class="py-12 bg-gray-50 border-b">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex flex-col md:flex-row items-center gap-6 md:gap-12">
+        <a href="https://www.firstinspires.org" target="_blank" rel="noopener" class="flex-shrink-0">
+          <img src="/images/first-logo.png" alt="FIRST" class="h-20 w-auto" />
+        </a>
+        <div>
+          <h2 class="text-2xl font-bold text-navy mb-2">A Decade of Building the Future</h2>
+          <p class="text-gray-700">
+            Since 2015, STEM+C has been a proud partner with <a href="https://www.firstinspires.org" target="_blank" rel="noopener" class="text-brand-blue hover:underline font-medium">FIRST</a> (For Inspiration and Recognition of Science and Technology). Over <strong>10+ years</strong>, we've grown from a small FLL team into a sustainable, community-driven robotics program—progressing through FLL, FTC, and now FRC. Our longevity reflects our commitment to the students and families we serve.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Current Program: FRC -->
   <section class="py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4">
       <div class="bg-gradient-to-br from-brand-blue to-blue-600 text-white rounded-2xl p-8 md:p-12 mb-12">
-        <div class="inline-block bg-white/20 text-sm font-medium px-3 py-1 rounded-full mb-4">
-          Current Program
+        <div class="flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
+          <a href="https://www.firstinspires.org/robotics/frc" target="_blank" rel="noopener" class="flex-shrink-0">
+            <img src="/images/first-frc-logo.png" alt="FIRST Robotics Competition" class="h-24 md:h-32 w-auto bg-white rounded-lg p-3" />
+          </a>
+          <div>
+            <div class="inline-block bg-white/20 text-sm font-medium px-3 py-1 rounded-full mb-4">
+              Current Program
+            </div>
+            <h2 class="text-3xl md:text-4xl font-bold mb-2">FIRST Robotics Competition (FRC)</h2>
+            <p class="text-lg font-semibold text-white mb-4">
+              <a href="https://www.thebluealliance.com/team/10933" target="_blank" rel="noopener" class="hover:underline">Team 10933 — Tie Dye Samurai</a> · 2026+
+            </p>
+            <p class="text-lg text-blue-100 max-w-3xl">
+              Our core program is FIRST Robotics Competition (FRC)—a high-energy, industry-grade engineering challenge where high school students design, build, program, and compete with full-sized robots in regional and national competitions.
+            </p>
+          </div>
         </div>
-        <h2 class="text-3xl md:text-4xl font-bold mb-6">FIRST Robotics Competition (FRC)</h2>
-        <p class="text-lg text-blue-100 max-w-3xl">
-          Our core program is FIRST Robotics Competition (FRC)—a high-energy, industry-grade engineering challenge where high school students design, build, program, and compete with full-sized robots in regional and national competitions.
-        </p>
       </div>
 
       <div class="grid md:grid-cols-2 gap-12">
@@ -90,26 +117,40 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
-  <!-- Past Programs -->
+  <!-- Our Journey -->
   <section class="py-16 md:py-24 bg-gray-50">
     <div class="max-w-6xl mx-auto px-4">
-      <h2 class="text-3xl font-bold mb-6">Past Programs</h2>
+      <h2 class="text-3xl font-bold mb-4">Our Journey</h2>
       <p class="text-lg text-gray-700 mb-8">
-        Over the years, STEM+C has also participated in:
+        We didn't start with 120-pound robots. Like many successful FRC teams, we built our foundation one season at a time—learning, growing, and developing the mentorship and infrastructure needed to sustain a competitive robotics program for the long haul.
       </p>
       <div class="grid sm:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-xl shadow-sm">
-          <h3 class="text-xl font-semibold text-navy mb-2">FIRST LEGO League (FLL)</h3>
-          <p class="text-gray-600">2 seasons</p>
+          <a href="https://www.firstinspires.org/robotics/fll" target="_blank" rel="noopener" class="flex items-center gap-4 mb-4 group">
+            <img src="/images/first-fll-logo.png" alt="FIRST LEGO League" class="h-16 w-auto" />
+          </a>
+          <h3 class="text-xl font-semibold text-navy mb-1">FIRST LEGO League (FLL)</h3>
+          <p class="text-brand-blue font-medium mb-2">Team 11234</p>
+          <p class="text-gray-600 mb-3">2015–2017</p>
+          <p class="text-sm text-gray-500">Where it all began. Elementary and middle school students learned the fundamentals of teamwork, problem-solving, and STEM through LEGO robotics.</p>
         </div>
         <div class="bg-white p-6 rounded-xl shadow-sm">
-          <h3 class="text-xl font-semibold text-navy mb-2">FIRST Tech Challenge (FTC)</h3>
-          <p class="text-gray-600">7 seasons</p>
+          <a href="https://www.firstinspires.org/robotics/ftc" target="_blank" rel="noopener" class="flex items-center gap-4 mb-4 group">
+            <img src="/images/first-ftc-logo.png" alt="FIRST Tech Challenge" class="h-16 w-auto" />
+          </a>
+          <h3 class="text-xl font-semibold text-navy mb-1">FIRST Tech Challenge (FTC)</h3>
+          <p class="text-brand-blue font-medium mb-2">
+            <a href="https://ftc-events.firstinspires.org/team/14835" target="_blank" rel="noopener" class="hover:underline">Team 14835</a>
+          </p>
+          <p class="text-gray-600 mb-3">2018–2025</p>
+          <p class="text-sm text-gray-500">Seven seasons of growth. Students advanced to metal fabrication, Java programming, and CAD design—building the skills and culture that define us today.</p>
         </div>
       </div>
-      <p class="text-gray-700 mt-8">
-        These experiences helped us grow into the advanced FRC team we are today. Many of our alumni started in FLL or FTC before progressing into full-scale robotics and engineering careers.
-      </p>
+      <div class="bg-navy text-white rounded-xl p-6 mt-8">
+        <p class="text-lg">
+          <strong>The result?</strong> A sustainable program with experienced mentors, established sponsors, and a proven track record of developing students who go on to top universities and careers in engineering, science, and technology.
+        </p>
+      </div>
     </div>
   </section>
 </BaseLayout>
