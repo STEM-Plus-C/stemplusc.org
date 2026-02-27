@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Photos folder (large media - consider Git LFS or separate hosting)
 photos/
+
+# Internal docs
+docs/
