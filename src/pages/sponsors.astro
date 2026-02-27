@@ -1,34 +1,49 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
 
-// Sponsor data - add logos to public/sponsors/ folder
-const sponsors = {
-  platinum: [
-    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
-  ],
-  gold: [
-    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
-  ],
-  silver: [
-    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
-  ],
-  bronze: [
-    // { name: "Company Name", logo: "/sponsors/company.png", url: "https://example.com" },
-  ],
-  supporters: [
-    // "Supporter Name",
-  ],
+// Auto-discover sponsor logos by tier
+const foundingLogos = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,svg}',
+  { eager: true }
+);
+const premiumLogos = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,svg}',
+  { eager: true }
+);
+const grandLogos = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,svg}',
+  { eager: true }
+);
+const teamLogos = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,svg}',
+  { eager: true }
+);
+
+// Helper to extract sponsor name from filename
+const getSponsors = (logos: Record<string, { default: ImageMetadata }>) => {
+  return Object.entries(logos).map(([path, module]) => {
+    const filename = path.split('/').pop() || '';
+    const name = filename
+      .replace(/\.(jpg|jpeg|png|webp|svg)$/, '')
+      .replace(/-/g, ' ')
+      .replace(/_/g, ' ');
+    return {
+      name,
+      src: module.default,
+    };
+  });
 };
 
-const hasPlatinum = sponsors.platinum.length > 0;
-const hasGold = sponsors.gold.length > 0;
-const hasSilver = sponsors.silver.length > 0;
-const hasBronze = sponsors.bronze.length > 0;
-const hasSupporters = sponsors.supporters.length > 0;
-const hasAnySponsors = hasPlatinum || hasGold || hasSilver || hasBronze || hasSupporters;
+const founding = getSponsors(foundingLogos);
+const premium = getSponsors(premiumLogos);
+const grand = getSponsors(grandLogos);
+const teamSponsors = getSponsors(teamLogos);
+
+const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length > 0 || teamSponsors.length > 0;
 ---
 
-<BaseLayout title="Our Sponsors" description="Thank you to our generous sponsors who make STEM+C programs possible.">
+<BaseLayout title="Our Sponsors" description="Thank you to our generous sponsors who make STEM+C and Tie Dye Samurai programs possible.">
   <!-- Hero -->
   <section class="bg-navy text-white py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4">
@@ -44,84 +59,93 @@ const hasAnySponsors = hasPlatinum || hasGold || hasSilver || hasBronze || hasSu
     <div class="max-w-6xl mx-auto px-4">
       {hasAnySponsors ? (
         <div class="space-y-16">
-          {hasPlatinum && (
+          {founding.length > 0 && (
             <div>
-              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Platinum Sponsors</h2>
+              <div class="flex items-center gap-3 mb-8">
+                <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full"></div>
+                <h2 class="text-2xl font-bold text-navy">Founding Sponsors</h2>
+                <span class="text-sm text-gray-500">$5,000+</span>
+              </div>
               <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {sponsors.platinum.map((sponsor) => (
-                  <a
-                    href={sponsor.url}
-                    target="_blank"
-                    rel="noopener"
-                    class="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
-                  >
-                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-24 w-auto" />
-                  </a>
+                {founding.map((sponsor) => (
+                  <div class="bg-white p-8 rounded-xl shadow-md border-2 border-amber-200 flex items-center justify-center min-h-[150px]">
+                    <Image
+                      src={sponsor.src}
+                      alt={sponsor.name}
+                      class="max-h-24 w-auto object-contain"
+                      widths={[200, 400]}
+                      format="webp"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {hasGold && (
+          {premium.length > 0 && (
             <div>
-              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Gold Sponsors</h2>
+              <div class="flex items-center gap-3 mb-8">
+                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full"></div>
+                <h2 class="text-2xl font-bold text-navy">Premium Sponsors</h2>
+                <span class="text-sm text-gray-500">$2,000+</span>
+              </div>
               <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {sponsors.gold.map((sponsor) => (
-                  <a
-                    href={sponsor.url}
-                    target="_blank"
-                    rel="noopener"
-                    class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
-                  >
-                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-16 w-auto" />
-                  </a>
+                {premium.map((sponsor) => (
+                  <div class="bg-white p-6 rounded-xl shadow-sm border-2 border-purple-100 flex items-center justify-center min-h-[120px]">
+                    <Image
+                      src={sponsor.src}
+                      alt={sponsor.name}
+                      class="max-h-16 w-auto object-contain"
+                      widths={[150, 300]}
+                      format="webp"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {hasSilver && (
+          {grand.length > 0 && (
             <div>
-              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Silver Sponsors</h2>
+              <div class="flex items-center gap-3 mb-8">
+                <div class="w-8 h-8 bg-gradient-to-br from-brand-blue to-blue-600 rounded-full"></div>
+                <h2 class="text-2xl font-bold text-navy">Grand Sponsors</h2>
+                <span class="text-sm text-gray-500">$1,000+</span>
+              </div>
               <div class="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                {sponsors.silver.map((sponsor) => (
-                  <a
-                    href={sponsor.url}
-                    target="_blank"
-                    rel="noopener"
-                    class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
-                  >
-                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-12 w-auto" />
-                  </a>
+                {grand.map((sponsor) => (
+                  <div class="bg-white p-4 rounded-lg shadow-sm border border-blue-100 flex items-center justify-center min-h-[100px]">
+                    <Image
+                      src={sponsor.src}
+                      alt={sponsor.name}
+                      class="max-h-12 w-auto object-contain"
+                      widths={[100, 200]}
+                      format="webp"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {hasBronze && (
+          {teamSponsors.length > 0 && (
             <div>
-              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Bronze Sponsors</h2>
+              <div class="flex items-center gap-3 mb-8">
+                <div class="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full"></div>
+                <h2 class="text-2xl font-bold text-navy">Team Sponsors</h2>
+                <span class="text-sm text-gray-500">$500+</span>
+              </div>
               <div class="grid sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                {sponsors.bronze.map((sponsor) => (
-                  <a
-                    href={sponsor.url}
-                    target="_blank"
-                    rel="noopener"
-                    class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center justify-center"
-                  >
-                    <img src={sponsor.logo} alt={sponsor.name} class="max-h-10 w-auto" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasSupporters && (
-            <div>
-              <h2 class="text-2xl font-bold mb-8 text-center text-navy">Community Supporters</h2>
-              <div class="flex flex-wrap justify-center gap-4">
-                {sponsors.supporters.map((name) => (
-                  <span class="bg-gray-100 px-4 py-2 rounded-full text-navy font-medium">{name}</span>
+                {teamSponsors.map((sponsor) => (
+                  <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-center justify-center min-h-[80px]">
+                    <Image
+                      src={sponsor.src}
+                      alt={sponsor.name}
+                      class="max-h-10 w-auto object-contain"
+                      widths={[80, 160]}
+                      format="webp"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -141,7 +165,7 @@ const hasAnySponsors = hasPlatinum || hasGold || hasSilver || hasBronze || hasSu
           <a
             href="/sponsorship.pdf"
             target="_blank"
-            class="inline-block bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors"
+            class="inline-block bg-brand-purple text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-900 transition-colors"
           >
             View Sponsorship Opportunities
           </a>
@@ -150,12 +174,58 @@ const hasAnySponsors = hasPlatinum || hasGold || hasSilver || hasBronze || hasSu
     </div>
   </section>
 
-  <!-- CTA -->
+  <!-- Sponsor Levels Info -->
   <section class="py-16 md:py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-12 text-center">Sponsorship Levels</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-amber-500">
+          <h3 class="font-bold text-navy text-lg mb-2">Founding Sponsor</h3>
+          <p class="text-2xl font-bold text-amber-600 mb-3">$5,000+</p>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Custom recognition</li>
+            <li>All previous benefits</li>
+            <li>Participation discussion</li>
+          </ul>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500">
+          <h3 class="font-bold text-navy text-lg mb-2">Premium Sponsor</h3>
+          <p class="text-2xl font-bold text-purple-600 mb-3">$2,000+</p>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Logo on robot</li>
+            <li>Business name on robot</li>
+            <li>All previous benefits</li>
+          </ul>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-brand-blue">
+          <h3 class="font-bold text-navy text-lg mb-2">Grand Sponsor</h3>
+          <p class="text-2xl font-bold text-brand-blue mb-3">$1,000+</p>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Logo on banner & shirt</li>
+            <li>Business name on banner & shirt</li>
+          </ul>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-gray-400">
+          <h3 class="font-bold text-navy text-lg mb-2">Team Sponsor</h3>
+          <p class="text-2xl font-bold text-gray-600 mb-3">$500+</p>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Business name on banner</li>
+            <li>Logo on team banner</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4 text-center">
       <h2 class="text-3xl font-bold mb-6">Interested in Sponsoring?</h2>
-      <p class="text-lg text-gray-700 max-w-2xl mx-auto mb-8">
-        Partner with STEM+C to support hands-on STEM education in the Gilbert community. Download our sponsorship packet to learn about opportunities and benefits.
+      <p class="text-lg text-gray-700 max-w-2xl mx-auto mb-4">
+        Partner with STEM+C and the Tie Dye Samurai to support hands-on STEM education in the Gilbert community.
+      </p>
+      <p class="text-gray-600 mb-8">
+        Contact us at <a href="mailto:tie-dye-admin@stemplusc.org" class="text-brand-blue hover:underline">tie-dye-admin@stemplusc.org</a>
       </p>
       <div class="flex flex-wrap justify-center gap-4">
         <a

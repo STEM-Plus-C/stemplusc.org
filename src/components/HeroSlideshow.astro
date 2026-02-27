@@ -1,0 +1,133 @@
+---
+import { Image } from 'astro:assets';
+
+interface Props {
+  images: ImageMetadata[];
+  interval?: number; // milliseconds
+}
+
+const { images, interval = 5000 } = Astro.props;
+---
+
+<div class="hero-slideshow relative w-full h-full" data-interval={interval}>
+  {images.map((image, index) => (
+    <div
+      class:list={[
+        "slide absolute inset-0 transition-opacity duration-1000",
+        index === 0 ? "opacity-100" : "opacity-0"
+      ]}
+      data-index={index}
+    >
+      <Image
+        src={image}
+        alt={`STEM+C Robotics - Slide ${index + 1}`}
+        class="w-full h-full object-cover"
+        widths={[800, 1200, 1920]}
+        sizes="100vw"
+        loading={index === 0 ? "eager" : "lazy"}
+        format="webp"
+        quality={85}
+      />
+    </div>
+  ))}
+
+  <!-- Overlay -->
+  <div class="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/70 to-navy/50"></div>
+
+  <!-- Navigation Dots -->
+  {images.length > 1 && (
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+      {images.map((_, index) => (
+        <button
+          class:list={[
+            "dot w-3 h-3 rounded-full transition-all duration-300",
+            index === 0 ? "bg-white scale-110" : "bg-white/50 hover:bg-white/75"
+          ]}
+          data-slide={index}
+          aria-label={`Go to slide ${index + 1}`}
+        />
+      ))}
+    </div>
+  )}
+</div>
+
+<script>
+  class HeroSlideshow {
+    container: HTMLElement;
+    slides: HTMLElement[];
+    dots: HTMLElement[];
+    currentIndex: number = 0;
+    interval: number;
+    timer: number | null = null;
+
+    constructor(container: HTMLElement) {
+      this.container = container;
+      this.slides = Array.from(container.querySelectorAll('.slide'));
+      this.dots = Array.from(container.querySelectorAll('.dot'));
+      this.interval = parseInt(container.dataset.interval || '5000');
+
+      if (this.slides.length > 1) {
+        this.init();
+      }
+    }
+
+    init() {
+      // Start auto-advance
+      this.startTimer();
+
+      // Dot click handlers
+      this.dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+          this.goToSlide(index);
+          this.resetTimer();
+        });
+      });
+
+      // Pause on hover
+      this.container.addEventListener('mouseenter', () => this.stopTimer());
+      this.container.addEventListener('mouseleave', () => this.startTimer());
+    }
+
+    goToSlide(index: number) {
+      // Hide current slide
+      this.slides[this.currentIndex].classList.remove('opacity-100');
+      this.slides[this.currentIndex].classList.add('opacity-0');
+      this.dots[this.currentIndex]?.classList.remove('bg-white', 'scale-110');
+      this.dots[this.currentIndex]?.classList.add('bg-white/50');
+
+      // Show new slide
+      this.currentIndex = index;
+      this.slides[this.currentIndex].classList.remove('opacity-0');
+      this.slides[this.currentIndex].classList.add('opacity-100');
+      this.dots[this.currentIndex]?.classList.remove('bg-white/50');
+      this.dots[this.currentIndex]?.classList.add('bg-white', 'scale-110');
+    }
+
+    nextSlide() {
+      const next = (this.currentIndex + 1) % this.slides.length;
+      this.goToSlide(next);
+    }
+
+    startTimer() {
+      if (this.timer) return;
+      this.timer = window.setInterval(() => this.nextSlide(), this.interval);
+    }
+
+    stopTimer() {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    }
+
+    resetTimer() {
+      this.stopTimer();
+      this.startTimer();
+    }
+  }
+
+  // Initialize all slideshows
+  document.querySelectorAll('.hero-slideshow').forEach((el) => {
+    new HeroSlideshow(el as HTMLElement);
+  });
+</script>

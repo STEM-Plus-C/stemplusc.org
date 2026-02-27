@@ -4,9 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: '#29386b',
-        'brand-blue': '#5bb7e8',
-        'brand-red': '#a61c1c',
+        // Tie Dye Samurai Official Palette
+        navy: '#081F3F',           // Team Navy Blue
+        electric: '#1DAEFF',       // Team Electric Blue
+        steel: {
+          light: '#8F9AA6',        // Cool Steel Grey (light)
+          DEFAULT: '#5F6B76',      // Cool Steel Grey (medium)
+        },
+        seasonal: '#7030a0',       // Seasonal Purple
+
+        // Aliases for convenience
+        'brand-blue': '#1DAEFF',   // Electric Blue
+        'brand-purple': '#7030a0', // Seasonal Purple (accent/CTA)
       },
     },
   },

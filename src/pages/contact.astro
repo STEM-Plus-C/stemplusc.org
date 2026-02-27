@@ -56,7 +56,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             </div>
             <button
               type="submit"
-              class="w-full bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors"
+              class="w-full bg-brand-purple text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-900 transition-colors"
             >
               Send Message
             </button>
@@ -88,8 +88,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               </div>
               <div>
                 <h3 class="font-semibold text-navy">Location</h3>
-                <p class="text-gray-600">Gilbert, Arizona</p>
+                <p class="text-gray-700">
+                  3316 E Maplewood St<br />
+                  Gilbert, AZ 85297
+                </p>
+                <p class="text-sm text-steel mt-2 italic">
+                  Please enter via the side garage door.
+                </p>
               </div>
+            </div>
+
+            <!-- Map -->
+            <div class="rounded-xl overflow-hidden border border-gray-200">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3333.8!2d-111.7285!3d33.3025!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x872ba7d0a1b5b5b5%3A0x0!2s3316+E+Maplewood+St%2C+Gilbert%2C+AZ+85297!5e0!3m2!1sen!2sus!4v1"
+                width="100%"
+                height="200"
+                style="border:0;"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                title="STEM+C Location"
+              ></iframe>
             </div>
 
             <div class="flex items-start gap-4">

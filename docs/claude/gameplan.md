@@ -158,11 +158,13 @@
 - **Zeffy donation**: https://www.zeffy.com/en-US/donation-form/donate-to-make-a-difference-12690
 - **Instagram**: https://www.instagram.com/_tiedyesamurai/
 - **YouTube**: https://www.youtube.com/@Tiedyesamurai
-- **Brand colors**:
-  - Navy blue: `#29386b` (primary text)
-  - Light blue: `#5bb7e8` (accents, swoops)
-  - Red/maroon: `#a61c1c` (accent)
-  - Black (secondary text)
+- **Brand colors** (Tie Dye Samurai Official Palette):
+  - Team Navy Blue: `#081F3F` (primary)
+  - Team Electric Blue: `#1DAEFF` (accent, links)
+  - Cool Steel Grey (light): `#8F9AA6`
+  - Cool Steel Grey (medium): `#5F6B76`
+  - Seasonal Purple: `#7030a0` (accent)
+  - White: `#FFFFFF`
 
 ## Still Needed
 

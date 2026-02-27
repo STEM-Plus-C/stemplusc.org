@@ -1,12 +1,38 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
+import HeroSlideshow from '../components/HeroSlideshow.astro';
+
+// Import hero images dynamically
+const heroImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/hero/*.{jpg,jpeg,png,webp}',
+  { eager: true }
+);
+const heroSlides = Object.values(heroImages).map(m => m.default);
+
+// Import gallery preview images
+const galleryImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/gallery/*.{jpg,jpeg,png,webp}',
+  { eager: true }
+);
+const galleryPreview = Object.values(galleryImages).slice(0, 4).map(m => m.default);
 ---
 
 <BaseLayout title="Home">
-  <!-- Hero Section -->
-  <section class="bg-gradient-to-br from-navy to-blue-900 text-white py-20 md:py-32">
-    <div class="max-w-6xl mx-auto px-4">
-      <div class="max-w-3xl">
+  <!-- Hero Section with Background Slideshow -->
+  <section class="relative min-h-[600px] md:min-h-[700px] flex items-center">
+    <!-- Background Slideshow or Gradient -->
+    <div class="absolute inset-0 z-0">
+      {heroSlides.length > 0 ? (
+        <HeroSlideshow images={heroSlides} interval={5000} />
+      ) : (
+        <div class="w-full h-full bg-gradient-to-br from-navy to-blue-900"></div>
+      )}
+    </div>
+
+    <!-- Content -->
+    <div class="relative z-10 max-w-6xl mx-auto px-4 py-20">
+      <div class="max-w-2xl">
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white">
           Hands-on STEM education that builds the future.
         </h1>
@@ -17,7 +43,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <a href="/programs" class="bg-brand-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-400 transition-colors">
             Join a Program
           </a>
-          <a href="/donate" class="bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors">
+          <a href="/donate" class="bg-brand-purple text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-900 transition-colors">
             Donate
           </a>
           <a href="/contact" class="border-2 border-white text-white px-6 py-3 rounded-lg font-medium hover:bg-white hover:text-navy transition-colors">
@@ -45,7 +71,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           </p>
         </div>
         <div class="bg-gray-100 rounded-xl p-8 text-center">
-          <img src="/logo.png" alt="STEM+C" class="h-32 mx-auto" />
+          <img src="/logo.svg" alt="STEM+C" class="h-32 mx-auto" />
         </div>
       </div>
     </div>
@@ -110,8 +136,38 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
+  <!-- Photo Gallery Preview -->
+  {galleryPreview.length > 0 && (
+    <section class="py-16 md:py-24">
+      <div class="max-w-6xl mx-auto px-4">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="text-3xl md:text-4xl font-bold">See Us in Action</h2>
+          <a href="/gallery" class="text-brand-blue hover:text-navy font-medium transition-colors">
+            View All &rarr;
+          </a>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {galleryPreview.map((img, i) => (
+            <a href="/gallery" class="group relative overflow-hidden rounded-xl aspect-square">
+              <Image
+                src={img}
+                alt={`Gallery image ${i + 1}`}
+                widths={[300, 400]}
+                sizes="(max-width: 640px) 50vw, 25vw"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                format="webp"
+                quality={80}
+                loading="lazy"
+              />
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
   <!-- Join the Team -->
-  <section class="py-16 md:py-24">
+  <section class="py-16 md:py-24 bg-gray-50">
     <div class="max-w-6xl mx-auto px-4 text-center">
       <h2 class="text-3xl md:text-4xl font-bold mb-6">Join the Team</h2>
       <p class="text-xl text-gray-700 max-w-2xl mx-auto mb-8">
@@ -124,7 +180,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <a href="/contact" class="bg-brand-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-400 transition-colors">
           Become a Mentor
         </a>
-        <a href="/donate" class="bg-brand-red text-white px-6 py-3 rounded-lg font-medium hover:bg-red-800 transition-colors">
+        <a href="/donate" class="bg-brand-purple text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-900 transition-colors">
           Support Us
         </a>
       </div>

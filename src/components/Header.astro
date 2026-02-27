@@ -3,6 +3,7 @@ const navItems = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
   { href: '/programs', label: 'Programs' },
+  { href: '/gallery', label: 'Gallery' },
   { href: '/sponsors', label: 'Sponsors' },
   { href: '/donate', label: 'Donate' },
   { href: '/contact', label: 'Contact' },
@@ -16,7 +17,8 @@ const currentPath = Astro.url.pathname;
     <div class="flex items-center justify-between">
       <!-- Logo -->
       <a href="/" class="flex items-center gap-3">
-        <img src="/logo.png" alt="STEM+C Creative Robotics" class="h-12 w-auto" />
+        <img src="/logo.svg" alt="STEM+C Creative Robotics" class="h-12 w-auto" />
+        <span class="text-xs text-steel-light italic hidden lg:block">Home of the Tie Dye Samurai</span>
       </a>
 
       <!-- Desktop Navigation -->
@@ -39,7 +41,7 @@ const currentPath = Astro.url.pathname;
       <!-- CTA Button -->
       <a
         href="/donate"
-        class="hidden md:inline-block bg-brand-red text-white px-5 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors"
+        class="hidden md:inline-block bg-brand-purple text-white px-5 py-2 rounded-lg font-medium hover:bg-purple-900 transition-colors"
       >
         Support Us
       </a>
@@ -75,7 +77,7 @@ const currentPath = Astro.url.pathname;
         <li class="pt-2">
           <a
             href="/donate"
-            class="inline-block bg-brand-red text-white px-5 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors"
+            class="inline-block bg-brand-purple text-white px-5 py-2 rounded-lg font-medium hover:bg-purple-900 transition-colors"
           >
             Support Us
           </a>
