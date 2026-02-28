@@ -32,7 +32,7 @@ const { images, interval = 5000 } = Astro.props;
   ))}
 
   <!-- Overlay -->
-  <div class="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/70 to-navy/50"></div>
+  <div class="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/70 to-navy/50 z-10"></div>
 
   <!-- Navigation Dots -->
   {images.length > 1 && (
