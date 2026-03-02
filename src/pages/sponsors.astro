@@ -3,34 +3,37 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 
 // Auto-discover sponsor logos by tier (case-insensitive extensions)
-const foundingLogos = import.meta.glob<{ default: ImageMetadata }>(
+// SVGs return string paths, images return ImageMetadata
+const foundingLogos = import.meta.glob<{ default: ImageMetadata | string }>(
   '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
-const premiumLogos = import.meta.glob<{ default: ImageMetadata }>(
+const premiumLogos = import.meta.glob<{ default: ImageMetadata | string }>(
   '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
-const grandLogos = import.meta.glob<{ default: ImageMetadata }>(
+const grandLogos = import.meta.glob<{ default: ImageMetadata | string }>(
   '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
-const teamLogos = import.meta.glob<{ default: ImageMetadata }>(
+const teamLogos = import.meta.glob<{ default: ImageMetadata | string }>(
   '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
   { eager: true }
 );
 
-// Helper to extract sponsor name from filename
-const getSponsors = (logos: Record<string, { default: ImageMetadata }>) => {
+// Helper to extract sponsor name and determine if SVG
+const getSponsors = (logos: Record<string, { default: ImageMetadata | string }>) => {
   return Object.entries(logos).map(([path, module]) => {
     const filename = path.split('/').pop() || '';
     const name = filename
       .replace(/\.(jpg|jpeg|png|webp|svg)$/i, '')
       .replace(/-/g, ' ')
       .replace(/_/g, ' ');
+    const isSvg = path.toLowerCase().endsWith('.svg');
     return {
       name,
       src: module.default,
+      isSvg,
     };
   });
 };
@@ -69,13 +72,17 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
               <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {founding.map((sponsor) => (
                   <div class="bg-white p-8 rounded-xl shadow-md border-2 border-amber-200 flex items-center justify-center min-h-[150px]">
-                    <Image
-                      src={sponsor.src}
-                      alt={sponsor.name}
-                      class="max-h-24 w-auto object-contain"
-                      widths={[200, 400]}
-                      format="webp"
-                    />
+                    {sponsor.isSvg ? (
+                      <img src={sponsor.src as string} alt={sponsor.name} class="max-h-24 w-auto object-contain" />
+                    ) : (
+                      <Image
+                        src={sponsor.src as ImageMetadata}
+                        alt={sponsor.name}
+                        class="max-h-24 w-auto object-contain"
+                        widths={[200, 400]}
+                        format="webp"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -92,13 +99,17 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
               <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {premium.map((sponsor) => (
                   <div class="bg-white p-6 rounded-xl shadow-sm border-2 border-purple-100 flex items-center justify-center min-h-[120px]">
-                    <Image
-                      src={sponsor.src}
-                      alt={sponsor.name}
-                      class="max-h-16 w-auto object-contain"
-                      widths={[150, 300]}
-                      format="webp"
-                    />
+                    {sponsor.isSvg ? (
+                      <img src={sponsor.src as string} alt={sponsor.name} class="max-h-16 w-auto object-contain" />
+                    ) : (
+                      <Image
+                        src={sponsor.src as ImageMetadata}
+                        alt={sponsor.name}
+                        class="max-h-16 w-auto object-contain"
+                        widths={[150, 300]}
+                        format="webp"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -115,13 +126,17 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
               <div class="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {grand.map((sponsor) => (
                   <div class="bg-white p-4 rounded-lg shadow-sm border border-blue-100 flex items-center justify-center min-h-[100px]">
-                    <Image
-                      src={sponsor.src}
-                      alt={sponsor.name}
-                      class="max-h-12 w-auto object-contain"
-                      widths={[100, 200]}
-                      format="webp"
-                    />
+                    {sponsor.isSvg ? (
+                      <img src={sponsor.src as string} alt={sponsor.name} class="max-h-12 w-auto object-contain" />
+                    ) : (
+                      <Image
+                        src={sponsor.src as ImageMetadata}
+                        alt={sponsor.name}
+                        class="max-h-12 w-auto object-contain"
+                        widths={[100, 200]}
+                        format="webp"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -138,13 +153,17 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
               <div class="grid sm:grid-cols-4 lg:grid-cols-6 gap-4">
                 {teamSponsors.map((sponsor) => (
                   <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-center justify-center min-h-[80px]">
-                    <Image
-                      src={sponsor.src}
-                      alt={sponsor.name}
-                      class="max-h-10 w-auto object-contain"
-                      widths={[80, 160]}
-                      format="webp"
-                    />
+                    {sponsor.isSvg ? (
+                      <img src={sponsor.src as string} alt={sponsor.name} class="max-h-10 w-auto object-contain" />
+                    ) : (
+                      <Image
+                        src={sponsor.src as ImageMetadata}
+                        alt={sponsor.name}
+                        class="max-h-10 w-auto object-contain"
+                        widths={[80, 160]}
+                        format="webp"
+                      />
+                    )}
                   </div>
                 ))}
               </div>

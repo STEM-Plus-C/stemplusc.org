@@ -9,7 +9,8 @@
       "Bash(unzip:*)",
       "Bash(git commit:*)",
       "Bash(whois:*)",
-      "Bash(npm run deploy:*)"
+      "Bash(npm run deploy:*)",
+      "Bash(ls:*)"
     ]
   }
 }
