@@ -3,45 +3,70 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 
 // Auto-discover sponsor logos by tier (case-insensitive extensions)
-// SVGs return string paths, images return ImageMetadata
-const foundingLogos = import.meta.glob<{ default: ImageMetadata | string }>(
-  '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
+// Separate globs for images vs SVGs since they import differently
+const foundingImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/founding/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
-const premiumLogos = import.meta.glob<{ default: ImageMetadata | string }>(
-  '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
+const foundingSvgs = import.meta.glob<string>(
+  '../assets/images/sponsors/founding/*.{svg,SVG}',
+  { eager: true, query: '?url', import: 'default' }
+);
+const premiumImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/premium/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
-const grandLogos = import.meta.glob<{ default: ImageMetadata | string }>(
-  '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
+const premiumSvgs = import.meta.glob<string>(
+  '../assets/images/sponsors/premium/*.{svg,SVG}',
+  { eager: true, query: '?url', import: 'default' }
+);
+const grandImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/grand/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
-const teamLogos = import.meta.glob<{ default: ImageMetadata | string }>(
-  '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG,WEBP,SVG}',
+const grandSvgs = import.meta.glob<string>(
+  '../assets/images/sponsors/grand/*.{svg,SVG}',
+  { eager: true, query: '?url', import: 'default' }
+);
+const teamImages = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/images/sponsors/team-sponsor/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
+);
+const teamSvgs = import.meta.glob<string>(
+  '../assets/images/sponsors/team-sponsor/*.{svg,SVG}',
+  { eager: true, query: '?url', import: 'default' }
 );
 
-// Helper to extract sponsor name and determine if SVG
-const getSponsors = (logos: Record<string, { default: ImageMetadata | string }>) => {
-  return Object.entries(logos).map(([path, module]) => {
+// Helper to combine images and SVGs into a single array
+const getSponsors = (
+  images: Record<string, { default: ImageMetadata }>,
+  svgs: Record<string, string>
+) => {
+  const imageSponsors = Object.entries(images).map(([path, module]) => {
     const filename = path.split('/').pop() || '';
     const name = filename
-      .replace(/\.(jpg|jpeg|png|webp|svg)$/i, '')
+      .replace(/\.(jpg|jpeg|png|webp)$/i, '')
       .replace(/-/g, ' ')
       .replace(/_/g, ' ');
-    const isSvg = path.toLowerCase().endsWith('.svg');
-    return {
-      name,
-      src: module.default,
-      isSvg,
-    };
+    return { name, src: module.default, isSvg: false };
   });
+
+  const svgSponsors = Object.entries(svgs).map(([path, url]) => {
+    const filename = path.split('/').pop() || '';
+    const name = filename
+      .replace(/\.svg$/i, '')
+      .replace(/-/g, ' ')
+      .replace(/_/g, ' ');
+    return { name, src: url, isSvg: true };
+  });
+
+  return [...imageSponsors, ...svgSponsors];
 };
 
-const founding = getSponsors(foundingLogos);
-const premium = getSponsors(premiumLogos);
-const grand = getSponsors(grandLogos);
-const teamSponsors = getSponsors(teamLogos);
+const founding = getSponsors(foundingImages, foundingSvgs);
+const premium = getSponsors(premiumImages, premiumSvgs);
+const grand = getSponsors(grandImages, grandSvgs);
+const teamSponsors = getSponsors(teamImages, teamSvgs);
 
 const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length > 0 || teamSponsors.length > 0;
 ---
