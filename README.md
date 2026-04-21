@@ -1,6 +1,6 @@
 # STEM+C Website
 
-Official website for STEM+C Creative Robotics — Home of the Tie Dye Samurai.
+Official website for STEM+C — Home of the Tie Dye Samurai.
 
 **Live site:** https://stemplusc.org
 
@@ -156,7 +156,7 @@ stemplusc.org/
 
 ## Organization Info
 
-**STEM+C Creative Robotics**
+**STEM+C**
 501(c)(3) Nonprofit
 EIN: 83-3523903
 3316 E Maplewood St, Gilbert, AZ 85297

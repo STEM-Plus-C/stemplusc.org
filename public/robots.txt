@@ -1,0 +1,9 @@
+# Robots.txt for stemplusc.org
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://stemplusc.org/sitemap.xml
+
+# Also accessible via stemplusc.com (redirects to .org)
+Sitemap: https://stemplusc.com/sitemap.xml

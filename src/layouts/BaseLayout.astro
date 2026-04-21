@@ -16,7 +16,7 @@ const {
 } = Astro.props;
 
 const siteUrl = "https://stemplusc.org";
-const fullTitle = `${title} | STEM+C Creative Robotics`;
+const fullTitle = `${title} | STEM+C`;
 const canonicalUrl = new URL(Astro.url.pathname, siteUrl).href;
 const ogImage = new URL(image, siteUrl).href;
 ---
@@ -39,7 +39,7 @@ const ogImage = new URL(image, siteUrl).href;
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
-    <meta property="og:site_name" content="STEM+C Creative Robotics" />
+    <meta property="og:site_name" content="STEM+C" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -50,6 +50,29 @@ const ogImage = new URL(image, siteUrl).href;
 
     <!-- Canonical -->
     <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "NonProfit",
+      "name": "STEM+C",
+      "alternateName": "Tie Dye Samurai",
+      "url": "https://stemplusc.org",
+      "logo": "https://stemplusc.org/logo.png",
+      "description": "501(c)(3) nonprofit based in Gilbert, Arizona, focused on teaching real-world STEM skills through robotics, aeronautics, and hands-on engineering projects.",
+      "email": "info@stemplus.org",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Gilbert",
+        "addressRegion": "AZ",
+        "addressCountry": "US"
+      },
+      "sameAs": [
+        "https://www.instagram.com/_tiedyesamurai/",
+        "https://www.youtube.com/@Tiedyesamurai",
+        "https://10933robotics.org"
+      ]
+    })} />
 
     <title>{fullTitle}</title>
   </head>
