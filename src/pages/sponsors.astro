@@ -90,7 +90,7 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
           {founding.length > 0 && (
             <div>
               <div class="flex items-center gap-3 mb-8">
-                <div class="w-8 h-8 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full"></div>
+                <div class="w-8 h-8 bg-linear-to-br from-yellow-400 to-amber-600 rounded-full"></div>
                 <h2 class="text-2xl font-bold text-navy">Founding Sponsors</h2>
                 <span class="text-sm text-gray-500">$5,000+</span>
               </div>
@@ -117,13 +117,13 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
           {premium.length > 0 && (
             <div>
               <div class="flex items-center gap-3 mb-8">
-                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full"></div>
+                <div class="w-8 h-8 bg-linear-to-br from-purple-500 to-purple-700 rounded-full"></div>
                 <h2 class="text-2xl font-bold text-navy">Premium Sponsors</h2>
                 <span class="text-sm text-gray-500">$2,000+</span>
               </div>
               <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {premium.map((sponsor) => (
-                  <div class="bg-white p-6 rounded-xl shadow-sm border-2 border-purple-100 flex items-center justify-center min-h-[120px]">
+                  <div class="bg-white p-6 rounded-xl shadow-xs border-2 border-purple-100 flex items-center justify-center min-h-[120px]">
                     {sponsor.isSvg ? (
                       <img src={sponsor.src as string} alt={sponsor.name} class="max-h-16 w-auto object-contain" />
                     ) : (
@@ -144,13 +144,13 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
           {grand.length > 0 && (
             <div>
               <div class="flex items-center gap-3 mb-8">
-                <div class="w-8 h-8 bg-gradient-to-br from-brand-blue to-blue-600 rounded-full"></div>
+                <div class="w-8 h-8 bg-linear-to-br from-brand-blue to-blue-600 rounded-full"></div>
                 <h2 class="text-2xl font-bold text-navy">Grand Sponsors</h2>
                 <span class="text-sm text-gray-500">$1,000+</span>
               </div>
               <div class="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {grand.map((sponsor) => (
-                  <div class="bg-white p-4 rounded-lg shadow-sm border border-blue-100 flex items-center justify-center min-h-[100px]">
+                  <div class="bg-white p-4 rounded-lg shadow-xs border border-blue-100 flex items-center justify-center min-h-[100px]">
                     {sponsor.isSvg ? (
                       <img src={sponsor.src as string} alt={sponsor.name} class="max-h-12 w-auto object-contain" />
                     ) : (
@@ -171,13 +171,13 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
           {teamSponsors.length > 0 && (
             <div>
               <div class="flex items-center gap-3 mb-8">
-                <div class="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full"></div>
+                <div class="w-8 h-8 bg-linear-to-br from-gray-400 to-gray-600 rounded-full"></div>
                 <h2 class="text-2xl font-bold text-navy">Team Sponsors</h2>
                 <span class="text-sm text-gray-500">$500+</span>
               </div>
               <div class="grid sm:grid-cols-4 lg:grid-cols-6 gap-4">
                 {teamSponsors.map((sponsor) => (
-                  <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-center justify-center min-h-[80px]">
+                  <div class="bg-white p-4 rounded-lg shadow-xs border border-gray-100 flex items-center justify-center min-h-[80px]">
                     {sponsor.isSvg ? (
                       <img src={sponsor.src as string} alt={sponsor.name} class="max-h-10 w-auto object-contain" />
                     ) : (
@@ -223,7 +223,7 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
     <div class="max-w-6xl mx-auto px-4">
       <h2 class="text-3xl font-bold mb-12 text-center">Sponsorship Levels</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-amber-500">
+        <div class="bg-white p-6 rounded-xl shadow-xs border-t-4 border-amber-500">
           <h3 class="font-bold text-navy text-lg mb-2">Founding Sponsor</h3>
           <p class="text-2xl font-bold text-amber-600 mb-3">$5,000+</p>
           <ul class="text-sm text-gray-600 space-y-1">
@@ -232,7 +232,7 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
             <li>Participation discussion</li>
           </ul>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500">
+        <div class="bg-white p-6 rounded-xl shadow-xs border-t-4 border-purple-500">
           <h3 class="font-bold text-navy text-lg mb-2">Premium Sponsor</h3>
           <p class="text-2xl font-bold text-purple-600 mb-3">$2,000+</p>
           <ul class="text-sm text-gray-600 space-y-1">
@@ -241,7 +241,7 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
             <li>All previous benefits</li>
           </ul>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-brand-blue">
+        <div class="bg-white p-6 rounded-xl shadow-xs border-t-4 border-brand-blue">
           <h3 class="font-bold text-navy text-lg mb-2">Grand Sponsor</h3>
           <p class="text-2xl font-bold text-brand-blue mb-3">$1,000+</p>
           <ul class="text-sm text-gray-600 space-y-1">
@@ -249,7 +249,7 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
             <li>Business name on banner & shirt</li>
           </ul>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-gray-400">
+        <div class="bg-white p-6 rounded-xl shadow-xs border-t-4 border-gray-400">
           <h3 class="font-bold text-navy text-lg mb-2">Team Sponsor</h3>
           <p class="text-2xl font-bold text-gray-600 mb-3">$500+</p>
           <ul class="text-sm text-gray-600 space-y-1">

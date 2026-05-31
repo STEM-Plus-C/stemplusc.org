@@ -2,6 +2,9 @@
   "name": "stemplusc-org",
   "type": "module",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -9,10 +12,11 @@
     "deploy": "npm run build && rsync -avz --delete dist/ stemplus@vda3300.is.cc:domains/stemplusc.org/public_html/"
   },
   "dependencies": {
-    "@astrojs/tailwind": "^5.1.0",
-    "astro": "^4.16.0",
+    "@astrojs/sitemap": "^3.7.2",
+    "@tailwindcss/vite": "^4.3.0",
+    "astro": "^6.4.2",
     "glightbox": "^3.3.1",
     "sharp": "^0.34.5",
-    "tailwindcss": "^3.4.0"
+    "tailwindcss": "^4.3.0"
   }
 }

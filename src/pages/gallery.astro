@@ -77,7 +77,7 @@ const categories = [
           <h2 class="text-2xl font-bold text-navy mb-6">Team</h2>
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {team.map((image) => (
-              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-[4/3] block cursor-zoom-in" data-category="team" data-gallery="team" data-glightbox={`title: ${image.alt}`}>
+              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-4/3 block cursor-zoom-in" data-category="team" data-gallery="team" data-glightbox={`title: ${image.alt}`}>
                 <Image
                   src={image.src}
                   alt={image.alt}
@@ -100,7 +100,7 @@ const categories = [
           <h2 class="text-2xl font-bold text-navy mb-6">Robots</h2>
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {robots.map((image) => (
-              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-[4/3] block cursor-zoom-in" data-category="robots" data-gallery="robots" data-glightbox={`title: ${image.alt}`}>
+              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-4/3 block cursor-zoom-in" data-category="robots" data-gallery="robots" data-glightbox={`title: ${image.alt}`}>
                 <Image
                   src={image.src}
                   alt={image.alt}
@@ -123,7 +123,7 @@ const categories = [
           <h2 class="text-2xl font-bold text-navy mb-6">Highlights</h2>
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {gallery.map((image) => (
-              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-[4/3] block cursor-zoom-in" data-category="gallery" data-gallery="highlights" data-glightbox={`title: ${image.alt}`}>
+              <a href={image.fullSrc} class="glightbox gallery-item group relative overflow-hidden rounded-xl bg-gray-100 aspect-4/3 block cursor-zoom-in" data-category="gallery" data-gallery="highlights" data-glightbox={`title: ${image.alt}`}>
                 <Image
                   src={image.src}
                   alt={image.alt}

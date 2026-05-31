@@ -9,10 +9,12 @@ const navItems = [
   { href: '/contact', label: 'Contact' },
 ];
 
-const currentPath = Astro.url.pathname;
+// Normalize trailing slash so active state matches on every page, not just
+// "/" (directory build format yields e.g. "/about/", but hrefs are "/about").
+const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
 ---
 
-<header class="bg-white shadow-sm sticky top-0 z-50">
+<header class="bg-white shadow-xs sticky top-0 z-50">
   <nav class="max-w-6xl mx-auto px-4 py-4">
     <div class="flex items-center justify-between">
       <!-- Logo -->
