@@ -8,7 +8,7 @@ Marketing/informational site for **STEM+C**, a 501(c)(3) nonprofit in Gilbert, A
 
 **Requires Node ≥22.12.0** (Astro 6 dropped Node 18). An `.nvmrc` pins Node 22 — run `nvm use` before `npm install`/`build`/`deploy`.
 
-**Sister site:** `../10933robotics.com` (deploys to 10933robotics.org) is the FRC Team 10933 site — a *program of* STEM+C built on the same Astro/Tailwind/rsync stack. The two are tied at the hip: shared org, branding, hosting server, and architecture. When changing conventions here (image-loading pattern, brand colors, deploy flow), check whether the sibling repo should change in lockstep.
+**Sister site:** `../tiedyesamurai.org` (deploys to tiedyesamurai.org) is the FRC Team 10933 site — a *program of* STEM+C built on the same Astro/Tailwind/rsync stack. The two are tied at the hip: shared org, branding, hosting server, and architecture. When changing conventions here (image-loading pattern, brand colors, deploy flow), check whether the sibling repo should change in lockstep.
 
 **Co-hosted sites:** `../7stalks.com` and `../pointcircle.com` are separate, unrelated Astro projects that happen to deploy to the *same server* (`vda3300.is.cc`) via the same `rsync --delete` pattern, each into its own `domains/<name>/public_html/`. They share no org or branding with STEM+C — relevant only as deploy-target neighbors (don't cross-deploy) and as reference implementations of the same hosting setup.
 
