@@ -43,3 +43,12 @@ RewriteRule ^(.*)$ https://stemplusc.org/$1 [L,R=301]
     ExpiresByType application/javascript "access plus 1 month"
     ExpiresByType application/pdf "access plus 1 month"
 </IfModule>
+
+# Always revalidate HTML so content updates appear immediately for returning
+# visitors. Browsers still get fast 304s when nothing changed; the content-
+# hashed /_astro/* assets keep their long cache lifetime.
+<IfModule mod_headers.c>
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
