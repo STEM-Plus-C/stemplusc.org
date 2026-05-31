@@ -29,7 +29,7 @@ const galleryImages = import.meta.glob<{ default: ImageMetadata }>(
 const galleryPreview = Object.values(galleryImages).slice(0, 4).map(m => m.default);
 ---
 
-<BaseLayout title="Home">
+<BaseLayout title="Home" description="STEM+C is a Gilbert, Arizona 501(c)(3) nonprofit delivering hands-on STEM education through robotics, engineering, and mentorship for students of all ages.">
   <!-- Hero Section with Background Slideshow -->
   <section class="relative min-h-[600px] md:min-h-[700px] flex items-center">
     <!-- Background Slideshow or Gradient -->
