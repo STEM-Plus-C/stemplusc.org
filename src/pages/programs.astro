@@ -2,7 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="Programs" description="Explore STEM+C programs — FIRST Robotics teams, engineering, coding, and hands-on STEM learning for students of all ages and skill levels in Gilbert, AZ.">
+<BaseLayout title="Programs" description="Explore STEM+C programs — FIRST Robotics teams (FRC & FTC), engineering, coding, and hands-on STEM learning for students grades 6-12 in Gilbert, AZ.">
   <!-- Hero -->
   <section class="bg-navy text-white py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4">
@@ -30,127 +30,111 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </section>
 
-  <!-- Current Program: FRC -->
+  <!-- Current Programs: FRC + FTC -->
   <section class="py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4">
-      <div class="bg-linear-to-br from-brand-blue to-blue-600 text-white rounded-2xl p-8 md:p-12 mb-12">
-        <div class="flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
-          <a href="https://www.firstinspires.org/robotics/frc" target="_blank" rel="noopener" class="shrink-0">
-            <img src="/images/first-frc-logo.png" alt="FIRST Robotics Competition" class="h-24 md:h-32 w-auto bg-white rounded-lg p-3" />
-          </a>
-          <div>
-            <div class="inline-block bg-white/20 text-sm font-medium px-3 py-1 rounded-full mb-4">
-              Current Program
-            </div>
-            <h2 class="text-3xl md:text-4xl font-bold mb-2">FIRST Robotics Competition (FRC)</h2>
-            <p class="text-lg font-semibold text-white mb-4">
-              <a href="https://tiedyesamurai.org" target="_blank" rel="noopener" class="hover:underline">Team 10933 — Tie Dye Samurai</a> · 2026+
-            </p>
-            <p class="text-lg text-blue-100 max-w-3xl">
-              Our core program is FIRST Robotics Competition (FRC)—a high-energy, industry-grade engineering challenge where high school students design, build, program, and compete with full-sized robots in regional and national competitions.
-            </p>
-          </div>
-        </div>
+      <div class="text-center max-w-3xl mx-auto mb-12">
+        <span class="text-sm font-semibold text-brand-blue uppercase tracking-wide">Current Programs</span>
+        <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-4">Two Teams, One Tie Dye Family</h2>
+        <p class="text-gray-700">
+          STEM+C fields two active FIRST teams so students can start in middle school and grow all the way through competitive robotics — from FTC to FRC and beyond.
+        </p>
       </div>
 
-      <div class="grid md:grid-cols-2 gap-12">
-        <div>
-          <h3 class="text-2xl font-bold mb-6">More Than Building Robots</h3>
-          <p class="text-gray-700 mb-6">
-            FRC is about much more than building robots. Students work in teams with professional mentors to develop skills in:
-          </p>
-          <ul class="space-y-3">
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>Mechanical Design & CAD</strong></span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>3D Printing & Assembly</strong></span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>Software Development & Control Systems</strong></span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>Project Management & Budgeting</strong></span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>Business Operations & Fundraising</strong></span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-brand-blue shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-gray-700"><strong>Communication, Outreach, and Teamwork</strong></span>
-            </li>
-          </ul>
-          <div class="bg-blue-50 border-l-4 border-brand-blue p-4 rounded-r-lg mt-6">
-            <p class="text-navy font-medium">
-              These are the same skills driving the growing automation industry—and FRC alumni are among the most sought-after candidates for robotics and automation careers.
+      <div class="grid lg:grid-cols-2 gap-8">
+        <!-- FRC: Tie Dye Samurai -->
+        <div class="rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+          <div class="bg-linear-to-br from-brand-blue to-blue-600 text-white p-8">
+            <div class="flex items-center gap-4 mb-4">
+              <img src="/images/first-frc-logo.png" alt="FIRST Robotics Competition" class="h-16 w-auto bg-white rounded-lg p-2" />
+              <div>
+                <h3 class="text-2xl font-bold">FIRST Robotics Competition</h3>
+                <p class="text-blue-100 text-sm">Grades 9-12</p>
+              </div>
+            </div>
+            <p class="text-blue-100">
+              <a href="https://tiedyesamurai.org" target="_blank" rel="noopener" class="font-semibold text-white hover:underline">Tie Dye Samurai — Team 10933</a>
             </p>
+          </div>
+          <div class="p-8 flex flex-col flex-grow">
+            <p class="text-gray-700 mb-6">
+              Our high-school program: an industry-grade engineering challenge where students design, build, program, and compete with full-sized (115 lb) robots at regional and national events.
+            </p>
+            <ul class="space-y-3 mb-6 flex-grow">
+              <li class="flex items-start gap-3"><span class="text-brand-blue mt-1">✓</span> <span class="text-gray-700"><strong>Mechanical Design &amp; CAD</strong>, fabrication, and 3D printing</span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-blue mt-1">✓</span> <span class="text-gray-700"><strong>Software &amp; control systems</strong> for a competition robot</span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-blue mt-1">✓</span> <span class="text-gray-700"><strong>Project management, business &amp; outreach</strong></span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-blue mt-1">✓</span> <span class="text-gray-700">Mentorship from professional engineers; scholarship pathways</span></li>
+            </ul>
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 class="font-semibold text-navy mb-2">Time Commitment</h4>
+              <ul class="text-sm text-gray-600 space-y-1">
+                <li><strong>Off-season:</strong> ~2 hrs/week in-person + independent learning</li>
+                <li><strong>Build season (Jan–Apr):</strong> intensive — weekday meetings &amp; weekend sessions</li>
+              </ul>
+            </div>
+            <a href="https://tiedyesamurai.org" target="_blank" rel="noopener" class="mt-auto inline-block bg-brand-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors text-center">
+              Visit Tie Dye Samurai
+            </a>
           </div>
         </div>
 
-        <div class="bg-gray-50 rounded-xl p-8">
-          <h3 class="text-2xl font-bold mb-6">Join the Team</h3>
-          <p class="text-gray-700 mb-4">
-            We are a <strong>community-based team</strong>, open to <strong>high school students</strong> from any school—or homeschool—in the greater Gilbert, Arizona area.
-          </p>
-          <p class="text-lg font-semibold text-navy mb-4">
-            No experience required. Just curiosity, commitment, and a willingness to try (and sometimes fail).
-          </p>
-          <div class="bg-white rounded-lg p-4 mb-6">
-            <h4 class="font-semibold text-navy mb-2">Time Commitment</h4>
-            <ul class="text-sm text-gray-600 space-y-1">
-              <li><strong>Off-season:</strong> ~2 hrs/week in-person + independent learning</li>
-              <li><strong>Build season (Jan–Apr):</strong> Doubles, including weekday meetings & weekend sessions</li>
-            </ul>
+        <!-- FTC: Tie Dye Jedi -->
+        <div class="rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+          <div class="bg-linear-to-br from-brand-purple to-purple-700 text-white p-8">
+            <div class="flex items-center gap-4 mb-4">
+              <img src="/images/first-ftc-logo.png" alt="FIRST Tech Challenge" class="h-16 w-auto bg-white rounded-lg p-2" />
+              <div>
+                <h3 class="text-2xl font-bold">FIRST Tech Challenge</h3>
+                <p class="text-purple-100 text-sm">Grades 6-9</p>
+              </div>
+            </div>
+            <p class="text-purple-100">
+              <a href="https://tiedyejedi.org" target="_blank" rel="noopener" class="font-semibold text-white hover:underline">Tie Dye Jedi</a>
+            </p>
           </div>
-          <div class="flex flex-col sm:flex-row gap-4">
-            <a href="/contact" class="bg-brand-purple text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-900 transition-colors text-center">
-              Join the Team
+          <div class="p-8 flex flex-col flex-grow">
+            <p class="text-gray-700 mb-6">
+              Our middle-school program: students design, build, and program mid-sized robots for an alliance-based game — the perfect on-ramp to competitive robotics and a feeder to our FRC team.
+            </p>
+            <ul class="space-y-3 mb-6 flex-grow">
+              <li class="flex items-start gap-3"><span class="text-brand-purple mt-1">✓</span> <span class="text-gray-700"><strong>Hands-on engineering</strong> built for grades 6-9</span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-purple mt-1">✓</span> <span class="text-gray-700"><strong>CAD, fabrication &amp; programming</strong> fundamentals</span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-purple mt-1">✓</span> <span class="text-gray-700"><strong>Teamwork, gracious professionalism &amp; problem-solving</strong></span></li>
+              <li class="flex items-start gap-3"><span class="text-brand-purple mt-1">✓</span> <span class="text-gray-700">A clear pathway into high-school FRC and beyond</span></li>
+            </ul>
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 class="font-semibold text-navy mb-2">Time Commitment</h4>
+              <ul class="text-sm text-gray-600 space-y-1">
+                <li><strong>Pre-season:</strong> ~1-2 meetings/week, lighter schedule</li>
+                <li><strong>Build &amp; competition (fall–winter):</strong> 2-3 meetings/week, occasional weekends</li>
+              </ul>
+            </div>
+            <a href="https://tiedyejedi.org" target="_blank" rel="noopener" class="mt-auto inline-block bg-brand-purple text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-900 transition-colors text-center">
+              Visit Tie Dye Jedi
             </a>
           </div>
         </div>
       </div>
 
-      <!-- Rookie Season Results -->
-      <div class="mt-12 bg-linear-to-br from-brand-purple to-purple-800 text-white rounded-xl p-8">
-        <div class="text-center mb-6">
-          <h3 class="text-2xl md:text-3xl font-bold mb-2">2026 Rookie Season Results</h3>
-          <p class="text-purple-200">Our first year competing in FRC</p>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div>
-            <p class="text-4xl font-bold">#1</p>
-            <p class="text-purple-200 text-sm mt-1">Rookie Team in AZ</p>
-          </div>
-          <div>
-            <p class="text-4xl font-bold">#8</p>
-            <p class="text-purple-200 text-sm mt-1">Overall in Arizona</p>
-          </div>
-          <div>
-            <p class="text-4xl font-bold">Top 25%</p>
-            <p class="text-purple-200 text-sm mt-1">Worldwide</p>
-          </div>
-          <div>
-            <p class="text-4xl font-bold">2</p>
-            <p class="text-purple-200 text-sm mt-1">Awards Won</p>
-          </div>
-        </div>
+      <!-- Skills callout -->
+      <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg mt-12 max-w-4xl mx-auto">
+        <p class="text-navy font-medium">
+          Across both programs, students gain the same skills driving the growing automation industry — and FIRST alumni are among the most sought-after candidates for robotics and engineering careers.
+        </p>
+      </div>
+
+      <!-- Who can join -->
+      <div class="text-center max-w-2xl mx-auto mt-12">
+        <p class="text-lg text-gray-700 mb-2">
+          We're <strong>community-based</strong> and open to students from any school — or homeschool — in the greater Gilbert, Arizona area.
+        </p>
+        <p class="text-lg font-semibold text-navy mb-6">
+          No experience required. Just curiosity, commitment, and a willingness to try (and sometimes fail).
+        </p>
+        <a href="/contact" class="inline-block bg-brand-purple text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-900 transition-colors">
+          Get Involved
+        </a>
       </div>
     </div>
   </section>
@@ -160,7 +144,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <div class="max-w-6xl mx-auto px-4">
       <h2 class="text-3xl font-bold mb-4">Our Journey</h2>
       <p class="text-lg text-gray-700 mb-8">
-        We didn't start with 115-pound robots. Like many successful FRC teams, we built our foundation one season at a time—learning, growing, and developing the mentorship and infrastructure needed to sustain a competitive robotics program for the long haul.
+        We didn't start with 115-pound robots. Like many successful FIRST teams, we built our foundation one season at a time—learning, growing, and developing the mentorship and infrastructure needed to sustain a competitive robotics program for the long haul.
       </p>
       <div class="grid sm:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
