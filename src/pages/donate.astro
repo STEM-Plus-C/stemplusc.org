@@ -72,22 +72,42 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           </p>
         </div>
 
-        <!-- Donate CTA -->
-        <div class="bg-gray-50 rounded-2xl p-8 md:p-12 text-center">
-          <h3 class="text-2xl font-bold mb-4">Make a Donation</h3>
-          <p class="text-gray-600 mb-8">
-            Every contribution makes a difference in a student's life.
+        <!-- Donate CTA: choose a team -->
+        <div class="bg-gray-50 rounded-2xl p-8 md:p-10">
+          <h3 class="text-2xl font-bold mb-2 text-center">Make a Donation</h3>
+          <p class="text-gray-600 mb-8 text-center">
+            Choose a team to support — every contribution makes a difference in a student's life.
           </p>
-          <a
-            href="https://www.zeffy.com/en-US/donation-form/donate-to-make-a-difference-12690"
-            target="_blank"
-            rel="noopener"
-            class="inline-block bg-brand-purple text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-purple-900 transition-colors"
-          >
-            Donate Now
-          </a>
-          <p class="text-sm text-gray-500 mt-4">
-            Secure donation powered by Zeffy
+          <div class="space-y-4">
+            <!-- Tie Dye Jedi (FTC) -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-l-4 border-brand-purple">
+              <h4 class="text-lg font-bold text-navy">Tie Dye Jedi <span class="font-normal text-gray-500">· FTC, grades 6-9</span></h4>
+              <p class="text-sm text-gray-600 mb-4">Support our new middle-school FIRST Tech Challenge team.</p>
+              <a
+                href="https://www.zeffy.com/en-US/donation-form/support-the-tie-dye-jedi-first-robotics-team"
+                target="_blank"
+                rel="noopener"
+                class="inline-block w-full text-center bg-brand-purple text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-900 transition-colors"
+              >
+                Donate to Tie Dye Jedi
+              </a>
+            </div>
+            <!-- Tie Dye Samurai (FRC) -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-l-4 border-brand-blue">
+              <h4 class="text-lg font-bold text-navy">Tie Dye Samurai <span class="font-normal text-gray-500">· FRC, grades 9-12</span></h4>
+              <p class="text-sm text-gray-600 mb-4">Support our high-school FIRST Robotics Competition team (Team 10933).</p>
+              <a
+                href="https://www.zeffy.com/en-US/donation-form/donate-to-make-a-difference-12690"
+                target="_blank"
+                rel="noopener"
+                class="inline-block w-full text-center bg-brand-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+              >
+                Donate to Tie Dye Samurai
+              </a>
+            </div>
+          </div>
+          <p class="text-sm text-gray-500 mt-6 text-center">
+            Secure donation powered by Zeffy · STEM+C is a 501(c)(3); gifts are tax-deductible.
           </p>
         </div>
       </div>
