@@ -40,21 +40,16 @@ const currentYear = new Date().getFullYear();
               info@stemplusc.org
             </a>
           </li>
-          <li>
-            <a href="https://www.instagram.com/_tiedyesamurai/" target="_blank" rel="noopener" class="text-gray-300 hover:text-white transition-colors">
-              Instagram
-            </a>
-          </li>
-          <li>
-            <a href="https://www.youtube.com/@Tiedyesamurai" target="_blank" rel="noopener" class="text-gray-300 hover:text-white transition-colors">
-              YouTube
-            </a>
-          </li>
-          <li>
-            <a href="https://www.facebook.com/stemplusc" target="_blank" rel="noopener" class="text-gray-300 hover:text-white transition-colors">
-              Facebook
-            </a>
-          </li>
+          {SITE.socials.map((social) => (
+            <li>
+              <a href={social.url} target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d={social.icon} />
+                </svg>
+                {social.name}
+              </a>
+            </li>
+          ))}
         </ul>
         <p class="text-gray-400 text-sm mt-4">Gilbert, Arizona</p>
       </div>

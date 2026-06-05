@@ -69,9 +69,7 @@ const ogImage = new URL(image, siteUrl).href;
         "addressCountry": "US"
       },
       "sameAs": [
-        "https://www.instagram.com/_tiedyesamurai/",
-        "https://www.youtube.com/@Tiedyesamurai",
-        "https://www.facebook.com/stemplusc",
+        ...SITE.socials.map((s) => s.url),
         "https://tiedyesamurai.org",
         "https://tiedyejedi.org"
       ]
