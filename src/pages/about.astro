@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../consts';
 ---
 
 <BaseLayout title="About Us" description="Learn about STEM+C — our mission, FIRST Robotics partnership, and the students and alumni we've guided into top engineering colleges and STEM careers.">
@@ -8,7 +9,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <div class="max-w-6xl mx-auto px-4">
       <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">About Us</h1>
       <p class="text-xl text-gray-200 max-w-2xl">
-        Providing the most engaging, hands-on STEM learning experiences for students of all ages.
+        Transforming students into the next generation of engineers, innovators, and leaders.
       </p>
     </div>
   </section>
@@ -20,7 +21,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <div>
           <h2 class="text-3xl font-bold mb-6">Our Mission</h2>
           <p class="text-lg text-gray-700">
-            To provide the most engaging, hands-on STEM learning experiences for students of all ages—focused on engineering applications and real-world problem solving.
+            {SITE.mission}
+          </p>
+          <h2 class="text-3xl font-bold mb-6 mt-10">Our Vision</h2>
+          <p class="text-lg text-gray-700">
+            {SITE.vision}
           </p>
         </div>
         <div>
@@ -29,10 +34,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             STEM+C is a 501(c)(3) nonprofit based in Gilbert, Arizona. We've been teaching robotics and engineering for over a decade through competitions, clubs, workshops, and mentorship.
           </p>
           <p class="text-gray-700">
-            We're community-based—not tied to any one school. Students from any school (or homeschool) can join our teams.
+            We're community-based—not tied to any one school. Students from any school (or homeschool) can join our teams, and students of all experience levels are welcome—no prior robotics background required.
           </p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Why We Exist -->
+  <section class="py-16 md:py-24 bg-navy text-white">
+    <div class="max-w-4xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-6 text-white">Why We Exist</h2>
+      <p class="text-lg text-gray-200 mb-8">
+        The engineers, software developers, technicians, and technology leaders of tomorrow are sitting in today's classrooms. STEM+C bridges the gap between education and industry by giving students access to real engineering projects, professional mentors, and experiences that prepare them for college and careers.
+      </p>
+      <p class="text-xl md:text-2xl font-semibold text-brand-blue">
+        {SITE.impact}
+      </p>
     </div>
   </section>
 

@@ -1,4 +1,5 @@
 ---
+import { SITE } from '../consts';
 const currentYear = new Date().getFullYear();
 ---
 
@@ -9,7 +10,7 @@ const currentYear = new Date().getFullYear();
       <div class="md:col-span-2">
         <img src="/logo.svg" alt="STEM+C" class="h-16 w-auto mb-4 brightness-0 invert" />
         <p class="text-gray-300 text-sm max-w-md">
-          STEM+C is a 501(c)(3) nonprofit based in Gilbert, Arizona, focused on teaching real-world STEM skills through robotics, aeronautics, and hands-on engineering projects.
+          {SITE.orgOneLiner}
         </p>
         <p class="text-gray-400 text-sm mt-2">EIN: 83-3523903</p>
       </div>

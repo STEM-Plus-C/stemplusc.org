@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import { SITE } from '../consts';
 
 interface Props {
   title: string;
@@ -11,7 +12,7 @@ interface Props {
 
 const {
   title,
-  description = "STEM+C - Hands-on STEM education that builds the future. Join our community of engineers, coders, and makers in Gilbert, AZ.",
+  description = "STEM+C transforms students into engineers, innovators, and leaders through hands-on robotics, real-world projects, and industry mentorship in Gilbert, AZ.",
   image = "/mascot.png"
 } = Astro.props;
 
@@ -59,7 +60,7 @@ const ogImage = new URL(image, siteUrl).href;
       "alternateName": ["Tie Dye Family", "Tie Dye Samurai"],
       "url": "https://stemplusc.org",
       "logo": "https://stemplusc.org/logo.png",
-      "description": "501(c)(3) nonprofit based in Gilbert, Arizona, focused on teaching real-world STEM skills through robotics, aeronautics, and hands-on engineering projects.",
+      "description": SITE.orgOneLiner,
       "email": "info@stemplusc.org",
       "address": {
         "@type": "PostalAddress",

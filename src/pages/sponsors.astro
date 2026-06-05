@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
+import { SITE } from '../consts';
 
 // Auto-discover sponsor logos by tier (case-insensitive extensions)
 // Separate globs for images vs SVGs since they import differently
@@ -76,8 +77,11 @@ const hasAnySponsors = founding.length > 0 || premium.length > 0 || grand.length
   <section class="bg-navy text-white py-16 md:py-24">
     <div class="max-w-6xl mx-auto px-4">
       <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">Our Sponsors</h1>
-      <p class="text-xl text-gray-200 max-w-2xl">
+      <p class="text-xl text-gray-200 max-w-2xl mb-4">
         Thank you to our generous sponsors who make our programs possible.
+      </p>
+      <p class="text-lg md:text-xl font-semibold text-brand-blue max-w-2xl">
+        {SITE.impact}
       </p>
     </div>
   </section>

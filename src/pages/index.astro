@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
 import HeroSlideshow from '../components/HeroSlideshow.astro';
+import { SITE } from '../consts';
 
 // Import hero images dynamically (case-insensitive extensions)
 const heroImages = import.meta.glob<{ default: ImageMetadata }>(
@@ -29,7 +30,7 @@ const galleryImages = import.meta.glob<{ default: ImageMetadata }>(
 const galleryPreview = Object.values(galleryImages).slice(0, 4).map(m => m.default);
 ---
 
-<BaseLayout title="Home" description="STEM+C is a Gilbert, Arizona 501(c)(3) nonprofit delivering hands-on STEM education through robotics, engineering, and mentorship for students of all ages.">
+<BaseLayout title="Home" description="STEM+C is a Gilbert, AZ 501(c)(3) nonprofit transforming students into the next generation of engineers through hands-on robotics and industry mentorship.">
   <!-- Hero Section with Background Slideshow -->
   <section class="relative min-h-[600px] md:min-h-[700px] flex items-center">
     <!-- Background Slideshow or Gradient -->
@@ -46,7 +47,7 @@ const galleryPreview = Object.values(galleryImages).slice(0, 4).map(m => m.defau
       <div class="max-w-2xl">
         <p class="text-brand-blue font-semibold text-lg mb-4">Home of the Tie Dye Family</p>
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white">
-          Preparing future automation leaders through hands-on STEM.
+          {SITE.tagline}
         </h1>
         <p class="text-xl md:text-2xl text-gray-200 mb-8">
           Join our community of engineers, coders, and makers in Gilbert, AZ—and beyond.
