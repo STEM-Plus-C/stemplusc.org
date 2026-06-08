@@ -39,29 +39,31 @@ const teamSvgs = import.meta.glob<string>(
 );
 
 // Helper to combine images and SVGs into a single array
+// Filename → display name. An optional leading `N_`/`N-` ordering prefix
+// (e.g. `1_CDW primary logo.svg`) controls sort order and is stripped here.
+const cleanName = (filename: string, ext: RegExp) =>
+  filename
+    .replace(ext, '')
+    .replace(/^\d+[\s._-]+/, '')
+    .replace(/[-_]/g, ' ')
+    .trim();
+
 const getSponsors = (
   images: Record<string, { default: ImageMetadata }>,
   svgs: Record<string, string>
 ) => {
   const imageSponsors = Object.entries(images).map(([path, module]) => {
     const filename = path.split('/').pop() || '';
-    const name = filename
-      .replace(/\.(jpg|jpeg|png|webp)$/i, '')
-      .replace(/-/g, ' ')
-      .replace(/_/g, ' ');
-    return { name, src: module.default, isSvg: false };
+    return { name: cleanName(filename, /\.(jpg|jpeg|png|webp)$/i), filename, src: module.default, isSvg: false };
   });
 
   const svgSponsors = Object.entries(svgs).map(([path, url]) => {
     const filename = path.split('/').pop() || '';
-    const name = filename
-      .replace(/\.svg$/i, '')
-      .replace(/-/g, ' ')
-      .replace(/_/g, ' ');
-    return { name, src: url, isSvg: true };
+    return { name: cleanName(filename, /\.svg$/i), filename, src: url, isSvg: true };
   });
 
-  return [...imageSponsors, ...svgSponsors];
+  // Sort by filename so the numeric prefix drives order; unprefixed tiers stay alphabetical.
+  return [...imageSponsors, ...svgSponsors].sort((a, b) => a.filename.localeCompare(b.filename));
 };
 
 const founding = getSponsors(foundingImages, foundingSvgs);
