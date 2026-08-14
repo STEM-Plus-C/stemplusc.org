@@ -20,11 +20,36 @@ interface Props {
   description: string;
   /** Human-readable period the document governs. */
   effective: string;
-  /** Optional warning banner rendered above the document body. */
+  /** Optional banner rendered above the document body. */
   notice?: string;
+  /** Heading for the notice banner. */
+  noticeTitle?: string;
+  /**
+   * Banner styling. `warning` (amber) for a document that must not be relied
+   * on yet; `info` (blue) for standing context on a document in force.
+   */
+  noticeTone?: 'warning' | 'info';
 }
 
-const { title, description, effective, notice } = Astro.props;
+const {
+  title,
+  description,
+  effective,
+  notice,
+  noticeTitle,
+  noticeTone = 'warning',
+} = Astro.props;
+
+const noticeStyles = {
+  warning: {
+    section: 'bg-amber-50 border-y-2 border-amber-400',
+    text: 'text-amber-900',
+  },
+  info: {
+    section: 'bg-blue-50 border-y-2 border-brand-blue',
+    text: 'text-navy',
+  },
+}[noticeTone];
 ---
 
 <BaseLayout title={title} description={description} noindex={true}>
@@ -44,10 +69,10 @@ const { title, description, effective, notice } = Astro.props;
   </section>
 
   {notice && (
-    <section class="bg-amber-50 border-y-2 border-amber-400">
+    <section class={noticeStyles.section}>
       <div class="max-w-3xl mx-auto px-4 py-5">
-        <p class="text-amber-900 text-sm leading-relaxed">
-          <strong class="block mb-1">⚠️ Not yet in effect — draft pending legal review</strong>
+        <p class={`${noticeStyles.text} text-sm leading-relaxed`}>
+          {noticeTitle && <strong class="block mb-1">{noticeTitle}</strong>}
           {notice}
         </p>
       </div>
