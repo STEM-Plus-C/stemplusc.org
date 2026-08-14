@@ -39,6 +39,16 @@ const spend = [
 const maxSpend = Math.max(...spend.map((s) => s.amount));
 const totalSpend = spend.reduce((sum, s) => sum + s.amount, 0);
 
+const EIN = '83-3523903';
+
+/**
+ * Both lookups are derived from the EIN so they cannot drift from it. IRS
+ * Tax Exempt Organization Search is authoritative; ProPublica mirrors the same
+ * IRS data in a form a visitor can actually read, and lags it by months.
+ */
+const irsUrl = 'https://apps.irs.gov/app/eos/';
+const propublicaUrl = `https://projects.propublica.org/nonprofits/organizations/${EIN.replace(/-/g, '')}`;
+
 const usd = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const usdExact = (n: number) =>
@@ -108,12 +118,33 @@ const pct = (n: number) => ((n / totalSpend) * 100).toFixed(1);
         </div>
       </div>
 
-      <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg">
+      <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg mb-6">
         <p class="text-navy">
           We spent <strong>{usd(shortfall)} more than we raised</strong> in our rookie FRC season.
           Family dues cover only part of the cost — <strong>{usd(season.sponsorships)}</strong> came
           from sponsorships, and the rest from grants, fundraising, and contributions from mentors
           and community supporters. Closing that gap is why we ask.
+        </p>
+      </div>
+
+      <!--
+        Seasons and tax years are different periods, and a reader comparing this
+        page against our public filings will notice. Say so here rather than let
+        them wonder whether the numbers are wrong.
+      -->
+      <div class="bg-gray-50 rounded-xl p-6">
+        <h3 class="font-semibold text-navy mb-2">Why these figures will not match our tax filings</h3>
+        <p class="text-sm text-gray-700 mb-3">
+          A robotics season runs across two calendar years — roughly summer through the
+          following April — so season totals never line up with a single tax year. Our IRS
+          filings are by fiscal year and are prepared on a different basis.
+        </p>
+        <p class="text-sm text-gray-700">
+          Public databases also lag IRS processing by months. If the most recent return you find
+          is <strong>fiscal year 2024</strong>, note that it <em>predates the FRC program</em> —
+          that year we were an FTC team with a much smaller budget. The season described above
+          falls largely in a later fiscal year. If the numbers here look larger than what you
+          find on file, that is why.
         </p>
       </div>
     </div>
@@ -199,6 +230,27 @@ const pct = (n: number) => ((n / totalSpend) * 100).toFixed(1);
         they buy no parts. Nearly everything else becomes tools, materials, and robot components that
         students design, build, and program themselves.
       </p>
+
+      <!-- The case for a capital gift, which a spending breakdown alone does not make. -->
+      <div class="bg-navy text-white rounded-xl p-8 mt-10">
+        <h3 class="text-xl font-semibold mb-3 text-white">What the money leaves behind</h3>
+        <p class="text-gray-300 mb-4">
+          Not every dollar is consumed. Registration fees and travel are spent and gone. But
+          workstations, saws, tooling, and shop equipment stay — they are used by this season's
+          students, and by every season's students after them.
+        </p>
+        <p class="text-gray-300 mb-4">
+          That is the difference between funding a season and building a program. A gift toward
+          equipment keeps working long after the robot it helped build has been taken apart for
+          parts — which, in FRC, happens every year.
+        </p>
+        <p class="text-gray-300">
+          It is also why our balance sheet understates us. Like most small nonprofits we expense
+          equipment in the year we buy it rather than carrying it as an asset, so a shop full of
+          working tools shows up in our filings as very little. The capability is real even where
+          the accounting does not show it.
+        </p>
+      </div>
     </div>
   </section>
 
@@ -248,13 +300,40 @@ const pct = (n: number) => ((n / totalSpend) * 100).toFixed(1);
             <dd class="text-gray-800 font-medium">Tax-deductible to the extent allowed by law</dd>
           </div>
         </dl>
-        <p class="text-sm text-gray-600 mt-6">
-          Our IRS filings are public record and can be looked up by EIN through the
-          <a href="https://apps.irs.gov/app/eos/" target="_blank" rel="noopener" class="text-brand-blue hover:underline">IRS Tax Exempt Organization Search</a>.
-          For anything not published here, email
-          <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
-          — we would rather answer than have you guess.
-        </p>
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <h4 class="font-semibold text-navy mb-3">Check our filings yourself</h4>
+          <div class="flex flex-wrap gap-3">
+            <a
+              href={propublicaUrl}
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium text-navy hover:border-brand-blue transition-colors"
+            >
+              ProPublica Nonprofit Explorer
+              <span class="text-gray-400" aria-hidden="true">&rarr;</span>
+            </a>
+            <a
+              href={irsUrl}
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium text-navy hover:border-brand-blue transition-colors"
+            >
+              IRS Tax Exempt Organization Search
+              <span class="text-gray-400" aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
+          <p class="text-sm text-gray-600 mt-4">
+            Our IRS filings are public record. ProPublica publishes them in a readable form;
+            the IRS search is the authoritative source — look us up by EIN
+            <strong class="tabular-nums">{EIN}</strong>. We would rather point you at the
+            primary source than ask you to take our word for it.
+          </p>
+          <p class="text-sm text-gray-600 mt-3">
+            For anything not published here, email
+            <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
+            — we would rather answer than have you guess.
+          </p>
+        </div>
       </div>
     </div>
   </section>
