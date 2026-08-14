@@ -22,6 +22,11 @@ interface Props {
   effective: string;
   /** Optional banner rendered above the document body. */
   notice?: string;
+  /**
+   * Path to the PDF rendered from this page by `npm run policies:pdf`. Offered
+   * as a download so a family can keep the same document they sign.
+   */
+  pdf?: string;
   /** Heading for the notice banner. */
   noticeTitle?: string;
   /**
@@ -38,6 +43,7 @@ const {
   notice,
   noticeTitle,
   noticeTone = 'warning',
+  pdf,
 } = Astro.props;
 
 const noticeStyles = {
@@ -60,6 +66,17 @@ const noticeStyles = {
         href="/policies"
         class="text-sm text-brand-blue hover:underline print:hidden"
       >&larr; All policies &amp; forms</a>
+      <!--
+        Print-only masthead. On screen the site header already carries the
+        logo; in print that header is stripped, and these documents get saved
+        as PDF and circulated for signature — so they have to identify
+        themselves without the surrounding site.
+      -->
+      <img
+        src="/logo.svg"
+        alt="STEM+C"
+        class="hidden print:block h-20 w-auto mb-5"
+      />
       <h1 class="text-3xl md:text-4xl font-bold mt-3 mb-3 text-white print:text-navy">{title}</h1>
       <p class="text-gray-300 print:text-gray-700">
         A program policy of <strong class="text-white print:text-navy">STEM+C</strong>, a 501(c)(3) nonprofit &middot; EIN 83-3523903
@@ -87,13 +104,24 @@ const noticeStyles = {
       <slot />
 
       <div class="mt-12 pt-8 border-t border-gray-200 print:hidden">
-        <button
-          type="button"
-          data-print
-          class="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-900 transition-colors"
-        >
-          Print this document
-        </button>
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            data-print
+            class="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-900 transition-colors"
+          >
+            Print this document
+          </button>
+          {pdf && (
+            <a
+              href={pdf}
+              download
+              class="inline-flex items-center gap-2 border-2 border-navy text-navy px-6 py-3 rounded-lg font-semibold hover:bg-navy hover:text-white transition-colors"
+            >
+              Download PDF
+            </a>
+          )}
+        </div>
         <p class="text-sm text-gray-500 mt-4">
           Questions about anything here? Email
           <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>

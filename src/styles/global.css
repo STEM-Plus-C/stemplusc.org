@@ -53,3 +53,71 @@
     color: var(--color-navy);
   }
 }
+
+/*
+  Print styles — these exist so the /policies documents can be saved as PDF and
+  uploaded to our e-signature tool as the documents families actually sign.
+  Anything that is site furniture rather than document content comes off.
+
+  Deliberately NOT inside `@layer base`. Unlayered CSS beats layered Tailwind
+  utilities in v4, which is normally the footgun this file warns about — here it
+  is the point: these rules must override utilities like `bg-navy` and
+  `sticky` that would otherwise follow the page onto paper.
+*/
+@media print {
+  /* Site furniture: navigation, footer, and anything marked no-print. */
+  header,
+  footer,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    /* Let the browser use the full page; margins come from @page below. */
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* A sticky header still reserves space even when hidden. */
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* Keep a heading with the text it introduces, and never split a signature
+     block or a list item across pages. */
+  h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  li, tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Long agreements are read on paper; hyperlink colour carries no meaning. */
+  a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+
+  /* Spell out where a link goes, since a printed page cannot be clicked.
+     Skipped for in-page and mailto links, where the text already says it. */
+  .policy-doc a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+}
+
+@page {
+  margin: 0.75in;
+}
