@@ -41,16 +41,23 @@ export const SITE = {
   },
 
   /**
-   * Registration links, per team. Null until the BoldSign templates are live;
-   * the Register page falls back to "contact your coach" while they are, so
-   * the page never advertises a link that does not work yet.
+   * FIRST youth-registration links, per team — generated under Team
+   * Contacts/Roster in the FIRST Dashboard.
    *
-   * These are signing-flow URLs, not forms on this site — participant data is
-   * never collected by this static site. See scripts/README.md.
+   * This is where a family that is ready to join goes. It is deliberately not
+   * the contact form: an inquiry sitting in an inbox has no queue and no
+   * status, and we have lost students to exactly that. A FIRST request lands
+   * in the Dashboard where it must be accepted or declined, and the parent is
+   * emailed either way.
+   *
+   * Null until the links are pasted in; the Register page falls back to the
+   * contact form rather than advertising a link that does not resolve.
    */
   registration: {
-    samurai: null as string | null,
-    jedi: null as string | null,
+    samurai:
+      "https://my.firstinspires.org/JoinTeam/Welcome/667d0894-969a-11f1-af91-00505699b848" as string | null,
+    jedi:
+      "https://my.firstinspires.org/JoinTeam/Welcome/0bd0b849-969a-11f1-af91-00505699b848" as string | null,
   },
 
   /**

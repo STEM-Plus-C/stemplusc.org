@@ -2,6 +2,107 @@
 
 How participant data is collected, and how to turn it into contact cards.
 
+---
+
+## Season runbook
+
+A student passes through five systems between "my kid wants to join" and "paid
+up on the roster." They arrive in each under a different identity — a name in
+FIRST, a signer email in BoldSign, `Clairet R` in the budget, and in Zeffy
+whoever actually paid, which is a parent's Venmo handle or an employer's
+matching-gift program.
+
+**The fix is a participant ID assigned at approval and carried into every
+system.** Two conventions below do most of the work; everything else is
+bookkeeping.
+
+### Stage 0 — Intake and approval (FIRST Dashboard)
+
+Parents register their student through the team link or QR code from **Team
+Contacts/Roster** in the FIRST Dashboard. You accept or decline there; FIRST
+emails the parent either way.
+
+After approval FIRST holds the student's name, the parent/guardian's name and
+email, and FIRST's own consent and release.
+
+> **FIRST's consent is not ours.** Families sign both. FIRST's covers FIRST's
+> events; ours covers our shop, our tools, and our travel.
+
+### Stage 1 — Assign a participant ID  ← *convention 1*
+
+On approval, assign an ID and never change it:
+
+```
+TDS-27-004     Tie Dye Samurai, 2026–27 season, fourth student approved
+TDJ-27-011     Tie Dye Jedi, same season, eleventh
+```
+
+It goes in the roster, gets prefilled into BoldSign, and becomes a column in the
+budget. This is the join key that makes the rest of the pipeline checkable.
+
+### Stage 2 — Signing packet (BoldSign)
+
+Send the appropriate template and **prefill** `participant_id`, student name,
+and parent name/email from what FIRST already gave you — BoldSign supports
+prefilling form fields at send time, so nothing is retyped and nothing is
+mistyped.
+
+The parent then supplies phone numbers, emergency information, and the media
+choice, and both parties sign. BoldSign now holds the complete contact record
+and the executed agreements.
+
+### Stage 3 — Roster
+
+Export form data from BoldSign, then run `vcards.mjs` for contact cards (see
+below). The season roster is: participant ID, student name, grade, team, start
+date, and date signed.
+
+### Stage 4 — Budget
+
+Add the student to `FRC Budget.xlsx` with their **participant ID** and **start
+date**. The existing `Start Date`, `Total Months Committed`, and `Over Under`
+columns already handle proration for mid-season joins — that part works; it just
+needs to be kept current.
+
+### Stage 5 — Payment (Zeffy)  ← *convention 2*
+
+**Add a custom question to the Zeffy fee form: "Student's full name."** Make it
+required if Zeffy allows it.
+
+This is the highest-value change in this document and it takes five minutes. It
+binds each payment to a student *at the moment of payment*, so you stop
+reverse-engineering who `venmo-handle-77` belongs to. Zeffy has no waiver or
+signature capability, so it stays purely the payment system — which is fine,
+because its processing is free.
+
+### Reconciliation — the exception list
+
+Once every system carries the participant ID, these questions become answerable,
+and the answers are where students fall through:
+
+| Check | Means |
+|---|---|
+| Approved in FIRST, no envelope sent | Packet never went out |
+| Envelope sent, not completed | Family stalled mid-signature |
+| Signed, not in the budget | Roster and budget have drifted |
+| In the budget, no Zeffy payments | Dues not started |
+| Zeffy payment matching no student | Convention 2 was skipped, or a new sibling |
+| Start date but wrong months committed | Proration not recalculated after a mid-season join |
+
+**Matching gifts stay manual.** Benevity and similar corporate programs remit
+under the employer's name with no student reference, so they cannot be
+auto-bound. Note them against a participant ID by hand when they land.
+
+### If this still hurts
+
+Conventions 1 and 2 are most of the value and require no software. If the seams
+still cost real time after a season with them, the honest next step is a tool
+with linked records — Airtable's free tier covers a team this size and makes
+payer↔student an actual relationship rather than a name match. That is likely a
+better answer than a bespoke script anyone here has to maintain.
+
+---
+
 ## Why it works this way
 
 The website collects nothing. `stemplusc.org` is a static site rsynced to shared
