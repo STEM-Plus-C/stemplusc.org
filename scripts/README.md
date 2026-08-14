@@ -8,7 +8,7 @@ How participant data is collected, and how to turn it into contact cards.
 
 A student passes through five systems between "my kid wants to join" and "paid
 up on the roster." They arrive in each under a different identity — a name in
-FIRST, a signer email in BoldSign, `Clairet R` in the budget, and in Zeffy
+FIRST, a submission in Jotform, `Clairet R` in the budget, and in Zeffy
 whoever actually paid, which is a parent's Venmo handle or an employer's
 matching-gift program.
 
@@ -37,27 +37,28 @@ TDS-27-004     Tie Dye Samurai, 2026–27 season, fourth student approved
 TDJ-27-011     Tie Dye Jedi, same season, eleventh
 ```
 
-It goes in the roster, gets prefilled into BoldSign, and becomes a column in the
-budget. This is the join key that makes the rest of the pipeline checkable.
+It goes in the roster, rides out on the Jotform packet link, and becomes a
+column in the budget. This is the join key that makes the rest of the pipeline checkable.
 
-### Stage 2 — Signing packet (BoldSign)
+### Stage 2 — Registration packet (Jotform)
 
-Send the appropriate template and **prefill** `participant_id`, student name,
-and parent name/email from what FIRST already gave you — BoldSign supports
-prefilling form fields at send time, so nothing is retyped and nothing is
-mistyped.
+`onboard.mjs --links` builds a prefilled form URL carrying `participant_id`,
+student name, and parent email from what FIRST already gave you — nothing is
+retyped and nothing is mistyped. Send it, or hand it to Jotform's invitation
+flow.
 
 The parent then supplies phone numbers, emergency information, and the media
-choice, and both parties sign. BoldSign now holds the complete contact record
-and the executed agreements.
+choice, and both parties sign. Jotform now holds the complete contact record
+and the executed agreements, and the participant id comes back on the
+submission.
 
 ### Stage 3 — Roster
 
-Export form data from BoldSign, then run `vcards.mjs` for contact cards (see
+Export submissions from Jotform, then run `vcards.mjs` for contact cards (see
 below). The season roster is: participant ID, student name, grade, team, start
 date, and date signed.
 
-You can also build contact cards straight from FIRST, before BoldSign comes
+You can also build contact cards straight from FIRST, before the packet comes
 back — useful the moment a student is accepted. See *Getting the roster out of
 FIRST* below.
 
@@ -86,8 +87,8 @@ and the answers are where students fall through:
 
 | Check | Means |
 |---|---|
-| Approved in FIRST, no envelope sent | Packet never went out |
-| Envelope sent, not completed | Family stalled mid-signature |
+| Approved in FIRST, no packet issued | Packet link never went out |
+| Packet issued, not submitted | Family stalled mid-form |
 | Signed, not in the budget | Roster and budget have drifted |
 | In the budget, no Zeffy payments | Dues not started |
 | Zeffy payment matching no student | Convention 2 was skipped, or a new sibling |
@@ -113,12 +114,20 @@ The website collects nothing. `stemplusc.org` is a static site rsynced to shared
 hosting, and **this repository is public on GitHub** — neither is an appropriate
 place for the names, emails, and phone numbers of minors.
 
-Registration data is captured in **BoldSign**, alongside the signatures, because
-BoldSign already needs the student and parent names and emails in order to route
-the signature requests. One system holding this data is better than three.
+Registration data and signatures are captured together in **Jotform**, on the
+current Bronze plan (1,000 submissions/month, full API access). One form
+collects the contact details, the emergency information, the media choice, and
+both signatures — so one system holds this data rather than three.
 
-Contact cards are generated **locally, on your machine**, from a CSV you export
-by hand. The data never reaches a server, a third party, or this repository.
+Jotform rather than BoldSign for a specific reason: **BoldSign's API is a
+separate $30/month product billed per document, and the nonprofit discount
+excludes API plans.** Jotform includes API access on every plan. Being a form
+tool first also means the registration fields are native rather than bolted onto
+a signing document, and conditional logic is available — which the COPPA design
+below actually needs.
+
+Contact cards are generated **locally, on your machine**. The data never reaches
+a server we run, a third party, or this repository.
 
 ## The COPPA constraint
 
@@ -127,50 +136,105 @@ obligations attach as soon as an operator has actual knowledge that a user is
 under 13, and the FTC is explicit that a checkbox is not verifiable parental
 consent.
 
-**Every data field is assigned to the parent/guardian signer role.** The student
-role carries only their own signature acknowledging the safety rules. A parent
-supplying their own child's details is not online collection *from a child*.
+**The parent completes the entire form.** The student's only interaction is
+signing their own acknowledgment of the safety rules. A parent supplying their
+own child's details is not online collection *from a child*.
 
 Two consequences, both deliberate:
 
-- **Ask for grade, not date of birth.** Grade is what determines team placement.
-  A DOB field manufactures the "actual knowledge of under-13" trigger for no
+- **Ask for grade, not date of birth.** Grade determines team placement. A DOB
+  field manufactures the "actual knowledge of under-13" trigger for no
   operational gain.
-- **Student email and phone are optional.** For emergencies you need a reliable
-  adult contact. Collect less.
+- **Student email and phone are optional**, and hidden entirely for younger
+  students by conditional logic (below). For emergencies you need a reliable
+  adult. Collect less.
 
-## BoldSign field plan
+## Jotform form build sheet
 
-Create these as form fields on the **parent/guardian role**. The field IDs must
-match exactly — the script looks them up by name.
+Build one form per team. Set each field's **unique name** to the value in the
+first column — that is what the prefill URL writes and what the API reads back.
+Jotform's numeric question ids shift as a form is edited and must not be keyed
+on.
 
-| Field ID | Type | Required | Notes |
+These are the same snake_case names `vcards.mjs` expects from a CSV export, so
+one set of names serves both the API path and the export-a-spreadsheet path.
+
+| Unique name | Type | Required | Notes |
 |---|---|---|---|
-| `student_first` | Text | Yes | |
-| `student_last` | Text | Yes | |
-| `student_grade` | Dropdown | Yes | 6–12 |
-| `student_email` | Text | No | Omit for under-13 |
-| `student_phone` | Text | No | Omit for under-13 |
-| `parent1_first` | Text | Yes | |
-| `parent1_last` | Text | Yes | |
-| `parent1_email` | Text | Yes | |
-| `parent1_phone` | Text | Yes | |
+| `participant_id` | Short text | Yes | **Read-only / hidden** — prefilled by the link |
+| `team` | Dropdown | Yes | Prefilled; Tie Dye Samurai / Tie Dye Jedi |
+| `student_first` | Short text | Yes | Prefilled from FIRST; legal first name |
+| `student_last` | Short text | Yes | Prefilled from FIRST |
+| `student_grade` | Dropdown | Yes | 6–12 — drives the conditional logic |
+| `student_email` | Email | No | Hidden when grade is 6–7 |
+| `student_phone` | Phone | No | Hidden when grade is 6–7 |
+| `parent1_first` | Short text | Yes | |
+| `parent1_last` | Short text | Yes | |
+| `parent1_email` | Email | Yes | Prefilled from FIRST |
+| `parent1_phone` | Phone | Yes | The number we call first in an emergency |
 | `parent1_relationship` | Dropdown | Yes | Mother / Father / Guardian |
-| `parent2_*` | — | No | Same five fields, all optional |
-| `team` | Dropdown | Yes | Tie Dye Samurai / Tie Dye Jedi |
+| `parent2_first` | Short text | No | |
+| `parent2_last` | Short text | No | |
+| `parent2_email` | Email | No | |
+| `parent2_phone` | Phone | No | |
+| `parent2_relationship` | Dropdown | No | |
+| `medical_notes` | Long text | No | Allergies, conditions, restrictions, medications |
+| `media_choice` | **Radio** | Yes | See below — must be radio, not checkbox |
 
-Also on the parent role, per section 7 of the consent agreement: a **radio
-group** for the media choice — "I authorize program media" / "I do not authorize
-program media". It must be a radio group, not a checkbox, and it must not be a
-condition of participation.
+### The media choice
 
-Suggested templates:
+Section 7 of the consent agreement requires this to be **presented separately
+and not be a condition of participation**. So:
 
-| Template | Signers |
-|---|---|
-| Minor participant packet | Parent/guardian **+** student |
-| Adult participant packet | Participant only (18+) |
-| Mentor / volunteer | Individual |
+- A **radio group**, never a checkbox. Two options, neither preselected:
+  *I authorize program media* / *I do not authorize program media*.
+- Not gated — a student participates either way, and the form must submit on
+  either answer.
+
+A pre-ticked box, or a design where declining blocks submission, would undercut
+the clause the agreement is relying on.
+
+### Conditional logic
+
+Under **Settings → Conditions**, add a show/hide rule:
+
+> If `student_grade` is 6 or 7 → hide `student_email` and `student_phone`
+
+This is the COPPA design made mechanical rather than remembered. Grade 8+ is
+comfortably over 13; 6–7 is where under-13 participants live.
+
+### Signatures
+
+Configure the form for **two signers** via Jotform Sign:
+
+| Signer | Signs | Notes |
+|---|---|---|
+| Parent/guardian | Team Agreement + Consent, Assumption of Risk, Release & Emergency Authorization | Completes every data field |
+| Student | Acknowledgment of the safety rules | Signature only — no data entry |
+
+The published documents live at
+[stemplusc.org/policies](https://stemplusc.org/policies); link them from the
+form so families can read before they sign rather than after.
+
+Jotform Sign is eSIGN and UETA compliant and produces an audit trail — who
+signed, when — which is what the consent agreement's electronic-signature
+section asks for.
+
+### Prefilling
+
+`onboard.mjs --links` generates a URL per student carrying `participant_id`,
+`student_first`, `student_last`, and `parent1_email`. The participant id coming
+back on the submission is what makes matching reliable — it is the join key the
+runbook describes, working end to end.
+
+Paste those links into your welcome email, or hand them to Jotform's own
+invitation flow.
+
+### API key
+
+Jotform → **Settings → API** → create a key. Put it in `JOTFORM_API_KEY` in your
+environment, and the two form ids in `JOTFORM_FORM_SAMURAI` and
+`JOTFORM_FORM_JEDI`. Never in this repository — it is public.
 
 ## Getting the roster out of FIRST
 
@@ -205,7 +269,7 @@ service, nothing leaving your machine. Delete the file when you are done.
 emails are reliable. **Phone numbers are frequently missing** — students often
 have none on file, and parent phone is regularly blank. FIRST also collects no
 second guardian, no grade, and no medical or emergency information. That gap is
-the reason the BoldSign step exists; it is not redundant with FIRST.
+the reason the Jotform step exists; it is not redundant with FIRST.
 
 Every run prints a **needs-attention list**: students whose application is not
 Accepted, students whose FIRST Consent & Release is not on record, and students
@@ -218,7 +282,7 @@ they print every time rather than hiding behind a flag.
    (Desktop or Downloads is fine — the script refuses to read from inside a git
    working tree):
    - **FIRST**: the `first-roster.json` from the console snippet above, or
-   - **BoldSign**: **Documents → Export Form Data** → save the CSV.
+   - **Jotform**: open the form → **Submissions → Download → CSV**.
 2. Run:
 
    ```bash
@@ -250,8 +314,8 @@ channel.
 
 ```
 FIRST: Accepted
-   ↓  send BoldSign packet, prefilled from the roster   → packetSentAt
-   ↓  poll BoldSign for completion                      → signedAt
+   ↓  issue a prefilled Jotform link, stamped with the id  → linkIssuedAt
+   ↓  poll Jotform submissions for that participant id     → signedAt
    ↓  look up guardian + student by email, invite       → slack.*
    ↓  not in the workspace yet? → worklist, retry next run
 ```
@@ -263,10 +327,10 @@ and it converges. Nothing is dropped; anything blocked appears in the report.
 
 This script emails documents to families and adds people to channels. Both are
 outward-facing and awkward to undo, so **nothing happens without `--commit`**.
-The dry run prints the exact BoldSign request body it would send — compare that
-against BoldSign's API Explorer before your first real run. The auth header and
-the document-properties endpoint are verified; the template-send body shape is
-not.
+The script never emails a family directly — it prints the packet link for you
+to send, so outbound contact stays in your hands and there is no send quota to
+burn. Prefill-by-query-string is documented and stable; the Sign send API shape
+is not something this script guesses at.
 
 ```bash
 node scripts/onboard.mjs ~/Downloads/first-roster.json            # dry run
@@ -310,7 +374,7 @@ becomes a second copy of the PII.
 
 For the transition: `--seed` creates entries for everyone currently accepted
 without sending anything, so you can inspect first. `--mark-signed <peopleId>`
-records someone who signed outside BoldSign, so the script stops chasing them.
+records someone who signed outside Jotform, so the script stops chasing them.
 
 ### Environment
 
@@ -319,16 +383,16 @@ Never commit these — this repository is public.
 | Variable | Purpose |
 |---|---|
 | `SLACK_BOT_TOKEN` | `xoxb-…` with `users:read`, `users:read.email`, `channels:read`, `channels:manage` (`groups:*` if the channels are private) |
-| `BOLDSIGN_API_KEY` | BoldSign API key |
-| `BOLDSIGN_TEMPLATE_SAMURAI` | Template id for the FRC packet |
-| `BOLDSIGN_TEMPLATE_JEDI` | Template id for the FTC packet |
+| `JOTFORM_API_KEY` | Jotform API key (Settings → API) |
+| `JOTFORM_FORM_SAMURAI` | Form id for the FRC packet |
+| `JOTFORM_FORM_JEDI` | Form id for the FTC packet |
 
 ## Handling rules
 
 - Never commit an export. `.gitignore` blocks `*.csv`, `*.vcf`, `*.vcard`,
   `roster*`, `participants*`, and `registrations*`, and the script refuses to
   read or write inside the repo — but those are backstops, not permission.
-- Don't email exports around. Share the BoldSign document instead.
+- Don't email exports around. Share the Jotform submission instead.
 - Delete exports when you are done. Retention is a liability, not an asset.
 - No API key is needed for any of this. If automation is ever added, the key
   belongs in an environment variable outside this repository.

@@ -83,17 +83,20 @@ const TEAMS = {
 const SEASON = '27';
 
 /**
- * Jotform field unique names. Set these in the form builder under each
- * field's Advanced → Field Details → Unique Name. They are what the prefill
- * URL writes and what the submission reads back, so they must match on both
- * sides — the numeric question ids Jotform assigns are not stable enough to
- * key on.
+ * Jotform field unique names. Set these on each field in the form builder.
+ * They are what the prefill URL writes and what the submission reads back, so
+ * they must match on both sides — the numeric question ids Jotform assigns are
+ * not stable enough to key on.
+ *
+ * Deliberately the same snake_case names `vcards.mjs` expects from a CSV
+ * export, so one set of field names serves both the API path and the
+ * export-a-spreadsheet path. See scripts/README.md for the full field list.
  */
 const FIELDS = {
-  participantId: 'participantId',
-  studentFirst: 'studentFirst',
-  studentLast: 'studentLast',
-  parentEmail: 'parentEmail',
+  participantId: 'participant_id',
+  studentFirst: 'student_first',
+  studentLast: 'student_last',
+  parentEmail: 'parent1_email',
 };
 
 const SLACK = 'https://slack.com/api';

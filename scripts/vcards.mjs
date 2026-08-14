@@ -8,8 +8,8 @@
  *      the Team Roster page. FIRST offers no CSV export ("Printable Roster" is
  *      a print view), but the page carries the whole roster as JSON. See
  *      scripts/README.md for the one-line console snippet that saves it.
- *   2. **BoldSign CSV** — the form-data export, which adds the phone numbers
- *      and second guardians FIRST does not collect.
+ *   2. **Jotform CSV** — the submissions export, which adds the phone numbers,
+ *      second guardians, and emergency information FIRST does not collect.
  *
  * Deliberately a local script and not a web service. The registration data is
  * personal information about minors; running the conversion on your own
@@ -24,7 +24,7 @@
  * Output defaults to ~/STEMC-vcards/<timestamp>/ — outside any git working
  * tree. The script refuses to read from or write into this repository.
  *
- * Expected CSV columns (BoldSign form field IDs — see scripts/README.md):
+ * Expected CSV columns (Jotform field unique names — see scripts/README.md):
  *   student_first, student_last, student_grade, student_email, student_phone,
  *   parent1_first, parent1_last, parent1_email, parent1_phone, parent1_relationship,
  *   parent2_* (same shape, optional), team
@@ -284,7 +284,7 @@ if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
   source = 'FIRST Dashboard JSON';
 } else {
   records = toRecords(parseCsv(raw));
-  source = 'BoldSign CSV';
+  source = 'Jotform CSV';
 }
 console.log(`Source: ${source}`);
 
