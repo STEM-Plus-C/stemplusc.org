@@ -1,0 +1,280 @@
+---
+/**
+ * Impact & transparency page.
+ *
+ * Every figure here is an aggregate. The source workbook tracks dues per
+ * family by name, including outstanding balances; none of that belongs on a
+ * public page, so only totals and vendor-level spend (vendors are businesses,
+ * not people) appear below.
+ *
+ * Figures are the 2026 FRC season, from the team budget. `spend` reconciles to
+ * `season.expenses` exactly — keep it that way when updating, and update
+ * `Other` rather than appending a tenth bar.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const season = {
+  label: '2026 season',
+  income: 51448.4,
+  expenses: 54743.79,
+  sponsorships: 15950,
+  students: 21,
+};
+
+const shortfall = season.expenses - season.income;
+
+/** Where the money went, by supplier, largest first. */
+const spend = [
+  { vendor: 'West Coast Products', amount: 16192.91, note: 'Drivetrain and structural components' },
+  { vendor: 'FIRST Inspires', amount: 9300.0, note: 'Team registration and regional event fees' },
+  { vendor: 'Amazon', amount: 8070.6, note: 'General parts, materials, and supplies' },
+  { vendor: 'AndyMark', amount: 5380.94, note: 'Robot components and hardware' },
+  { vendor: 'Rev Robotics', amount: 4893.0, note: 'Motors, controls, and electronics' },
+  { vendor: 'CTR Electronics', amount: 3951.72, note: 'Motor controllers and sensors' },
+  { vendor: 'McMaster Carr', amount: 3830.23, note: 'Raw stock, fasteners, and tooling' },
+  { vendor: 'Lenovo', amount: 1645.21, note: 'Design and programming workstations' },
+  { vendor: 'Other suppliers', amount: 1479.18, note: 'Four smaller vendors' },
+];
+
+const maxSpend = Math.max(...spend.map((s) => s.amount));
+const totalSpend = spend.reduce((sum, s) => sum + s.amount, 0);
+
+const usd = (n: number) =>
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const usdExact = (n: number) =>
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+const pct = (n: number) => ((n / totalSpend) * 100).toFixed(1);
+---
+
+<BaseLayout
+  title="Impact & Transparency"
+  description="How STEM+C spends its money and what it delivers — season financials, program spending, filings, and reports for our Gilbert, AZ robotics programs."
+>
+  <!-- Hero -->
+  <section class="bg-navy text-white py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">Impact &amp; Transparency</h1>
+      <p class="text-xl text-gray-200 max-w-2xl">
+        We ask families, sponsors, and grantmakers to fund this work. Here is exactly what it costs
+        and where the money goes.
+      </p>
+    </div>
+  </section>
+
+  <!-- At a glance -->
+  <section class="py-12 bg-gray-50 border-b border-gray-200">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+          <p class="text-4xl font-bold text-navy">12th</p>
+          <p class="text-gray-600 mt-1 text-sm">Season in robotics</p>
+        </div>
+        <div>
+          <p class="text-4xl font-bold text-navy">{season.students}</p>
+          <p class="text-gray-600 mt-1 text-sm">Students, {season.label}</p>
+        </div>
+        <div>
+          <p class="text-4xl font-bold text-navy">2</p>
+          <p class="text-gray-600 mt-1 text-sm">Competition teams</p>
+        </div>
+        <div>
+          <p class="text-4xl font-bold text-navy">100%</p>
+          <p class="text-gray-600 mt-1 text-sm">Volunteer-run</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Season financials -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-2">The {season.label} in numbers</h2>
+      <p class="text-gray-600 mb-8">
+        Our first FIRST Robotics Competition season, covering two regional events.
+      </p>
+
+      <div class="grid sm:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-50 rounded-xl p-6">
+          <p class="text-sm uppercase tracking-wide text-gray-500">Raised</p>
+          <p class="text-3xl font-bold text-navy mt-1">{usd(season.income)}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-6">
+          <p class="text-sm uppercase tracking-wide text-gray-500">Spent</p>
+          <p class="text-3xl font-bold text-navy mt-1">{usd(season.expenses)}</p>
+        </div>
+        <div class="bg-brand-purple/10 rounded-xl p-6 ring-2 ring-brand-purple">
+          <p class="text-sm uppercase tracking-wide text-brand-purple font-semibold">Shortfall</p>
+          <p class="text-3xl font-bold text-navy mt-1">{usd(shortfall)}</p>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg">
+        <p class="text-navy">
+          We spent <strong>{usd(shortfall)} more than we raised</strong> in our rookie FRC season.
+          Family dues cover only part of the cost — <strong>{usd(season.sponsorships)}</strong> came
+          from sponsorships, and the rest from grants, fundraising, and contributions from mentors
+          and community supporters. Closing that gap is why we ask.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Where the money went -->
+  <section class="py-16 md:py-24 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-2">Where the money went</h2>
+      <p class="text-gray-600 mb-10">
+        Every dollar of {season.label} spending, by supplier — {usdExact(totalSpend)} in total.
+      </p>
+
+      <!-- Bar chart. Single measure, so one hue; each bar carries its own value
+           label, which is also the relief for the fill's contrast against the
+           surface. -->
+      <figure class="mb-6">
+        <ul class="space-y-4">
+          {spend.map((s) => (
+            <li>
+              <div class="flex justify-between items-baseline gap-4 mb-1.5">
+                <span class="text-sm font-medium text-navy">{s.vendor}</span>
+                <span class="text-sm font-semibold text-navy tabular-nums shrink-0">
+                  {usdExact(s.amount)}
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="grow bg-gray-200 rounded-sm h-3 overflow-hidden">
+                  <div
+                    class="bg-navy h-full rounded-r-sm"
+                    style={`width: ${(s.amount / maxSpend) * 100}%`}
+                  ></div>
+                </div>
+                <span class="text-xs text-gray-500 tabular-nums w-11 text-right shrink-0">
+                  {pct(s.amount)}%
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">{s.note}</p>
+            </li>
+          ))}
+        </ul>
+        <figcaption class="sr-only">
+          Horizontal bar chart of {season.label} program spending by supplier, largest first.
+          The same figures appear in the table below.
+        </figcaption>
+      </figure>
+
+      <details class="mt-8">
+        <summary class="cursor-pointer text-brand-blue font-medium hover:underline">
+          View as a table
+        </summary>
+        <div class="overflow-x-auto mt-4">
+          <table class="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+            <thead class="bg-white">
+              <tr>
+                <th class="text-left px-4 py-3 font-semibold text-navy border-b border-gray-200">Supplier</th>
+                <th class="text-right px-4 py-3 font-semibold text-navy border-b border-gray-200">Amount</th>
+                <th class="text-right px-4 py-3 font-semibold text-navy border-b border-gray-200">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {spend.map((s) => (
+                <tr class="odd:bg-white even:bg-gray-50">
+                  <td class="px-4 py-2 text-gray-700">{s.vendor}</td>
+                  <td class="px-4 py-2 text-right text-gray-700 tabular-nums">{usdExact(s.amount)}</td>
+                  <td class="px-4 py-2 text-right text-gray-500 tabular-nums">{pct(s.amount)}%</td>
+                </tr>
+              ))}
+              <tr class="bg-white font-semibold">
+                <td class="px-4 py-3 text-navy border-t-2 border-gray-300">Total</td>
+                <td class="px-4 py-3 text-right text-navy tabular-nums border-t-2 border-gray-300">
+                  {usdExact(totalSpend)}
+                </td>
+                <td class="px-4 py-3 text-right text-navy tabular-nums border-t-2 border-gray-300">100%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <p class="text-sm text-gray-500 mt-6">
+        Registration and regional event fees paid to <em>FIRST</em> are fixed costs of competing —
+        they buy no parts. Nearly everything else becomes tools, materials, and robot components that
+        students design, build, and program themselves.
+      </p>
+    </div>
+  </section>
+
+  <!-- Reports & filings -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-8">Reports &amp; filings</h2>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-10">
+        <a
+          href="https://tiedyesamurai.org/end-of-season-report-2026.pdf"
+          target="_blank"
+          rel="noopener"
+          class="block rounded-xl border border-gray-200 shadow-sm p-6 hover:border-brand-blue transition-colors"
+        >
+          <h3 class="font-semibold text-navy mb-2">2026 End-of-Season Report</h3>
+          <p class="text-gray-600 text-sm">
+            Tie Dye Samurai's full rookie FRC season — results, awards, and outreach. PDF.
+          </p>
+        </a>
+        <div class="rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="font-semibold text-navy mb-2">Governing documents</h3>
+          <p class="text-gray-600 text-sm">
+            Our <a href="/policies" class="text-brand-blue hover:underline">team agreement and
+            participant consent forms</a> are published in full.
+          </p>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 rounded-xl p-8">
+        <h3 class="font-semibold text-navy mb-4">Organization details</h3>
+        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <dt class="text-gray-500">Legal status</dt>
+            <dd class="text-gray-800 font-medium">501(c)(3) nonprofit corporation (Arizona)</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">EIN</dt>
+            <dd class="text-gray-800 font-medium tabular-nums">83-3523903</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">AZ Corporation Commission entity ID</dt>
+            <dd class="text-gray-800 font-medium tabular-nums">1949945</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">Contributions</dt>
+            <dd class="text-gray-800 font-medium">Tax-deductible to the extent allowed by law</dd>
+          </div>
+        </dl>
+        <p class="text-sm text-gray-600 mt-6">
+          Our IRS filings are public record and can be looked up by EIN through the
+          <a href="https://apps.irs.gov/app/eos/" target="_blank" rel="noopener" class="text-brand-blue hover:underline">IRS Tax Exempt Organization Search</a>.
+          For anything not published here, email
+          <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
+          — we would rather answer than have you guess.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-16 bg-navy text-white">
+    <div class="max-w-4xl mx-auto px-4 text-center">
+      <h2 class="text-3xl font-bold mb-4 text-white">Help close the gap</h2>
+      <p class="text-gray-300 mb-8 max-w-2xl mx-auto">
+        Every dollar goes into tools, parts, registration fees, and getting students to
+        competition — not overhead. We are entirely volunteer-run.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <a href="/donate" class="bg-brand-purple text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-900 transition-colors">
+          Donate
+        </a>
+        <a href="/sponsors" class="bg-brand-blue text-navy px-8 py-3 rounded-lg font-semibold hover:bg-white transition-colors">
+          Become a Sponsor
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
