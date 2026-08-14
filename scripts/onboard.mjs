@@ -1,39 +1,54 @@
 #!/usr/bin/env node
 /**
- * Onboard accepted students: send the signing packet, then — once signed —
- * add the student and their guardian to the right Slack channels.
+ * Onboard accepted students: issue the registration packet, then — once it is
+ * completed and signed — add the student and their guardian to Slack.
  *
  * Signatures gate Slack access. A family that has not completed the packet
- * (which contains the liability release) never lands in a channel.
- *
- * The flow per student, advanced as far as it can go on each run:
+ * (which carries the liability release) never lands in a channel.
  *
  *   FIRST: Accepted
- *      ↓  send BoldSign packet, prefilled from the roster   → packetSentAt
- *      ↓  poll BoldSign for completion                      → signedAt
- *      ↓  look up guardian + student by email, invite       → slack.*
+ *      ↓  issue a prefilled Jotform link, stamped with the participant id
+ *      ↓  poll Jotform submissions for that participant id      → signedAt
+ *      ↓  look up guardian + student by email, invite to Slack  → slack.*
  *      ↓  not yet in the workspace? → worklist, retry next run
  *
- * Every run re-evaluates everyone, so it is idempotent — run it whenever and
- * it converges. Nothing is skipped permanently; anything blocked appears in
+ * Every run advances whoever can advance, so it is idempotent — run it whenever
+ * and it converges. Nothing is skipped permanently; anything blocked appears in
  * the report.
  *
- * DRY RUN IS THE DEFAULT. This script emails documents to families and adds
- * people to channels — both outward-facing and awkward to undo. Pass --commit
- * to actually act, and read the dry-run output first.
+ * ## Why links rather than an API "send"
+ *
+ * The script generates a prefilled form URL per student instead of calling a
+ * send endpoint. Prefill-by-query-string is a documented, stable Jotform
+ * behaviour; the Sign send API shape is not something this script should be
+ * guessing at. It also means the script never emails a family directly — you
+ * stay in the loop on outbound contact, and there is no send quota to burn.
+ *
+ * Paste the link into your welcome email, or hand it to Jotform's own
+ * invitation flow. Either way the participant id rides along and comes back
+ * on the submission, which is what makes the matching reliable.
+ *
+ * ## Cost
+ *
+ * Jotform includes API access on every plan, including the free tier — unlike
+ * BoldSign, whose API is a separate $30/month product excluded from the
+ * nonprofit discount. Reading submissions costs nothing.
+ *
+ * DRY RUN IS THE DEFAULT. This script adds people to Slack channels. Pass
+ * --commit to act, and read the dry-run output first.
  *
  * Usage:
  *   node scripts/onboard.mjs <roster.json> [--commit] [--seed]
+ *   node scripts/onboard.mjs <roster.json> --links        # print links, do nothing else
  *   node scripts/onboard.mjs <roster.json> --mark-signed <peopleId>
  *   node scripts/onboard.mjs <roster.json> --state <path>
  *
  * Environment (never commit these — this repository is public):
- *   SLACK_BOT_TOKEN            xoxb-… with users:read, users:read.email,
- *                              channels:read, channels:manage (groups:* if the
- *                              channels are private)
- *   BOLDSIGN_API_KEY           BoldSign API key
- *   BOLDSIGN_TEMPLATE_SAMURAI  template id for the FRC packet
- *   BOLDSIGN_TEMPLATE_JEDI     template id for the FTC packet
+ *   SLACK_BOT_TOKEN          xoxb-… with users:read, users:read.email,
+ *                            channels:read, channels:manage (groups:* if private)
+ *   JOTFORM_API_KEY          Jotform API key (Settings → API)
+ *   JOTFORM_FORM_SAMURAI     form id for the FRC packet
+ *   JOTFORM_FORM_JEDI        form id for the FTC packet
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -43,9 +58,9 @@ import { homedir } from 'node:os';
 // ---------------------------------------------------------------- config
 
 /**
- * Slack channels, per team. Names must match Slack exactly — the script
- * resolves them to IDs and fails loudly if one does not exist, rather than
- * quietly onboarding someone into nothing.
+ * Slack channels and Jotform forms, per team. Channel names must match Slack
+ * exactly — the script resolves them to IDs and aborts if one is missing,
+ * rather than quietly onboarding someone into nothing.
  */
 const TEAMS = {
   samurai: {
@@ -53,25 +68,36 @@ const TEAMS = {
     idPrefix: 'TDS',
     studentChannel: 'all-tie-dye-samurai',
     parentChannel: 'parents',
-    templateEnv: 'BOLDSIGN_TEMPLATE_SAMURAI',
+    formEnv: 'JOTFORM_FORM_SAMURAI',
   },
   jedi: {
     label: 'Tie Dye Jedi',
     idPrefix: 'TDJ',
     studentChannel: 'tie-dye-jedi-general',
     parentChannel: 'jedi-parents',
-    templateEnv: 'BOLDSIGN_TEMPLATE_JEDI',
+    formEnv: 'JOTFORM_FORM_JEDI',
   },
 };
 
-/** Two-digit season suffix used in participant IDs, e.g. TDS-27-004. */
+/** Two-digit season suffix used in participant ids, e.g. TDS-27-004. */
 const SEASON = '27';
 
-/** Human-readable season, for document titles. */
-const SEASON_LABEL = '2026–2027';
+/**
+ * Jotform field unique names. Set these in the form builder under each
+ * field's Advanced → Field Details → Unique Name. They are what the prefill
+ * URL writes and what the submission reads back, so they must match on both
+ * sides — the numeric question ids Jotform assigns are not stable enough to
+ * key on.
+ */
+const FIELDS = {
+  participantId: 'participantId',
+  studentFirst: 'studentFirst',
+  studentLast: 'studentLast',
+  parentEmail: 'parentEmail',
+};
 
 const SLACK = 'https://slack.com/api';
-const BOLDSIGN = 'https://api.boldsign.com/v1';
+const JOTFORM = 'https://api.jotform.com';
 
 // ------------------------------------------------------------------ cli
 
@@ -84,19 +110,20 @@ const val = (f, d) => {
 
 const commit = has('commit');
 const seedOnly = has('seed');
+const linksOnly = has('links');
 const markSigned = val('mark-signed', null);
 const rosterPath = argv.find(
-  (a, i) => !a.startsWith('--') && !['--state', '--mark-signed', '--team'].includes(argv[i - 1])
+  (a, i) => !a.startsWith('--') && !['--state', '--mark-signed'].includes(argv[i - 1])
 );
 
 if (!rosterPath) {
   console.error(
-    'Usage: node scripts/onboard.mjs <roster.json> [--commit] [--seed] [--mark-signed <peopleId>]'
+    'Usage: node scripts/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--mark-signed <peopleId>]'
   );
   process.exit(1);
 }
 
-// ------------------------------------------------------------- guards
+// -------------------------------------------------------------- guards
 
 function findRepoRoot(start) {
   let dir = resolve(start);
@@ -124,15 +151,15 @@ assertOutsideRepo(rosterPath, 'read roster data from');
 const statePath = resolve(val('state', join(homedir(), 'STEMC-onboarding', 'state.json')));
 assertOutsideRepo(statePath, 'store onboarding state');
 
-// ------------------------------------------------------------- state
+// --------------------------------------------------------------- state
 
 /**
  * The ledger records only *what happened*, keyed by FIRST's PeopleID — no
  * names, no emails, no phone numbers. Contact details are re-read from the
- * roster on each run, so this file never becomes a second copy of the PII.
+ * roster each run, so this file never becomes a second copy of the PII.
  */
 function loadState() {
-  if (!existsSync(statePath)) return { version: 1, participants: {} };
+  if (!existsSync(statePath)) return { version: 2, participants: {} };
   try {
     return JSON.parse(readFileSync(statePath, 'utf8'));
   } catch (err) {
@@ -156,7 +183,7 @@ function nextParticipantId(state, team) {
   return `${prefix}${String(Math.max(0, ...used) + 1).padStart(3, '0')}`;
 }
 
-// ------------------------------------------------------------- roster
+// -------------------------------------------------------------- roster
 
 function loadRoster(path) {
   const data = JSON.parse(readFileSync(resolve(path), 'utf8'));
@@ -166,12 +193,91 @@ function loadRoster(path) {
     console.error('\nNo roster found — expected ContactRosterModel with a TeamStudents array.\n');
     process.exit(1);
   }
-  // FIRST's TeamType tells us which program this roster belongs to.
   const team = String(model?.TeamType ?? '').toUpperCase() === 'FTC' ? 'jedi' : 'samurai';
   return { team, students };
 }
 
-// -------------------------------------------------------------- slack
+// ------------------------------------------------------------- jotform
+
+async function jotform(path) {
+  const key = process.env.JOTFORM_API_KEY;
+  if (!key) throw new Error('JOTFORM_API_KEY is not set');
+  // Key goes in a header rather than the query string so it stays out of URLs,
+  // shell history, and any proxy logs.
+  const res = await fetch(`${JOTFORM}${path}`, {
+    headers: { APIKEY: key, accept: 'application/json' },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Jotform ${path} → ${res.status}: ${text.slice(0, 300)}`);
+  const json = JSON.parse(text);
+  if (json.responseCode && json.responseCode !== 200) {
+    throw new Error(`Jotform ${path} → ${json.responseCode}: ${json.message ?? 'unknown error'}`);
+  }
+  return json.content;
+}
+
+/**
+ * Read one answer out of a submission by the field's unique name.
+ *
+ * Jotform keys answers by numeric question id, which differs per form and
+ * shifts as a form is edited, so matching on the stable `name` is the only
+ * durable approach. Composite fields (name, address) answer with an object
+ * rather than a string.
+ */
+function answerByName(submission, name) {
+  for (const a of Object.values(submission?.answers ?? {})) {
+    if (a?.name !== name) continue;
+    const v = a.answer;
+    if (v == null) return undefined;
+    if (typeof v === 'string') return v.trim() || undefined;
+    if (typeof v === 'object') {
+      const joined = Object.values(v).filter(Boolean).join(' ').trim();
+      return joined || undefined;
+    }
+    return String(v);
+  }
+  return undefined;
+}
+
+/** Fetch every submission for a form, paging until exhausted. */
+async function fetchSubmissions(formId) {
+  const all = [];
+  const limit = 1000;
+  for (let offset = 0; ; offset += limit) {
+    const page = await jotform(
+      `/form/${encodeURIComponent(formId)}/submissions?limit=${limit}&offset=${offset}`
+    );
+    if (!Array.isArray(page) || page.length === 0) break;
+    all.push(...page);
+    if (page.length < limit) break;
+  }
+  return all;
+}
+
+/** Index submissions by the participant id they carry back. */
+function indexByParticipant(submissions) {
+  const map = new Map();
+  for (const s of submissions) {
+    // Jotform marks deleted submissions rather than removing them.
+    if (String(s.status ?? '').toUpperCase() === 'DELETED') continue;
+    const pid = answerByName(s, FIELDS.participantId);
+    if (pid) map.set(pid.trim().toUpperCase(), s);
+  }
+  return map;
+}
+
+/** Prefilled form URL. The participant id is what makes matching reliable. */
+function packetLink({ formId, participantId, student, guardian }) {
+  const params = new URLSearchParams({
+    [FIELDS.participantId]: participantId,
+    [FIELDS.studentFirst]: student.legalFirst,
+    [FIELDS.studentLast]: student.last,
+    [FIELDS.parentEmail]: guardian.email,
+  });
+  return `https://form.jotform.com/${formId}?${params}`;
+}
+
+// --------------------------------------------------------------- slack
 
 async function slack(method, params = {}, post = false) {
   const token = process.env.SLACK_BOT_TOKEN;
@@ -190,7 +296,7 @@ async function slack(method, params = {}, post = false) {
   return json;
 }
 
-/** Resolve channel names to IDs once, up front, so a typo fails before we act. */
+/** Resolve channel names to IDs up front, so a typo fails before we act. */
 async function resolveChannels(names) {
   const wanted = new Set(names);
   const found = new Map();
@@ -219,7 +325,7 @@ async function resolveChannels(names) {
   return found;
 }
 
-/** null means "not in the workspace yet", which is a worklist item, not an error. */
+/** null means "not in the workspace yet" — a worklist item, not an error. */
 async function findSlackUser(email) {
   if (!email) return null;
   try {
@@ -234,73 +340,14 @@ async function findSlackUser(email) {
 async function inviteToChannel(channelId, userId) {
   try {
     await slack('conversations.invite', { channel: channelId, users: userId }, true);
-    return 'added';
+    return 'added to';
   } catch (err) {
-    // Already a member is a success for our purposes.
-    if (String(err.message).includes('already_in_channel')) return 'already in channel';
+    if (String(err.message).includes('already_in_channel')) return 'already in';
     throw err;
   }
 }
 
-// ----------------------------------------------------------- boldsign
-
-async function boldsign(path, { method = 'GET', body } = {}) {
-  const key = process.env.BOLDSIGN_API_KEY;
-  if (!key) throw new Error('BOLDSIGN_API_KEY is not set');
-  const res = await fetch(`${BOLDSIGN}${path}`, {
-    method,
-    headers: {
-      'X-API-KEY': key,
-      accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`BoldSign ${path} → ${res.status}: ${text.slice(0, 300)}`);
-  return text ? JSON.parse(text) : {};
-}
-
-/**
- * Build the send-from-template request.
- *
- * NOTE: verify this body against BoldSign's API Explorer before the first
- * --commit run. The auth header and the properties endpoint are confirmed; the
- * exact role/field shape here is not, which is why --dry-run prints the request
- * verbatim for you to compare.
- */
-function packetRequest({ templateId, participantId, student, guardian, team }) {
-  return {
-    templateId,
-    title: `${TEAMS[team].label} — ${SEASON_LABEL} season registration`,
-    roles: [
-      {
-        roleIndex: 1,
-        // Legal names throughout — this is a signed agreement, not a contact
-        // card, so a preferred name does not belong on the signature line.
-        signerName: `${guardian.legalFirst} ${guardian.last}`.trim(),
-        signerEmail: guardian.email,
-        signerType: 'Signer',
-        formFields: [
-          { id: 'participant_id', value: participantId },
-          { id: 'student_first', value: student.legalFirst },
-          { id: 'student_last', value: student.last },
-          { id: 'team', value: TEAMS[team].label },
-        ],
-      },
-      {
-        roleIndex: 2,
-        signerName: `${student.legalFirst} ${student.last}`.trim(),
-        signerEmail: student.email,
-        signerType: 'Signer',
-      },
-    ],
-  };
-}
-
-const COMPLETED = new Set(['completed', 'signed']);
-
-// --------------------------------------------------------------- main
+// ---------------------------------------------------------------- main
 
 const state = loadState();
 
@@ -313,7 +360,7 @@ if (markSigned) {
   entry.signedAt = new Date().toISOString();
   entry.signedVia = 'manual';
   saveState(state);
-  console.log(`Marked ${entry.participantId} as signed (recorded outside BoldSign).`);
+  console.log(`Marked ${entry.participantId} as signed (recorded outside Jotform).`);
   process.exit(0);
 }
 
@@ -322,7 +369,11 @@ const cfg = TEAMS[team];
 const accepted = students.filter((s) => s.ApplicationStatus === 'Accepted');
 
 console.log(`Roster: ${cfg.label} — ${students.length} student(s), ${accepted.length} accepted`);
-console.log(commit ? 'Mode:   COMMIT — changes will be made\n' : 'Mode:   dry run — nothing will change (pass --commit to act)\n');
+console.log(
+  commit
+    ? 'Mode:   COMMIT — Slack changes will be made\n'
+    : 'Mode:   dry run — nothing will change (pass --commit to act)\n'
+);
 
 // Seed ledger entries for everyone accepted.
 for (const s of accepted) {
@@ -332,8 +383,7 @@ for (const s of accepted) {
       participantId: nextParticipantId(state, team),
       team,
       firstAcceptedSeen: new Date().toISOString(),
-      packetSentAt: null,
-      packetDocumentId: null,
+      linkIssuedAt: null,
       signedAt: null,
       slack: { student: null, parent: null },
     };
@@ -343,7 +393,42 @@ for (const s of accepted) {
 if (seedOnly) {
   if (commit) saveState(state);
   console.log(`Seeded ${accepted.length} ledger entr(ies) at ${statePath}`);
-  console.log(commit ? 'Nothing sent. Review, then run without --seed.' : 'Dry run — pass --commit to write the ledger.');
+  console.log(
+    commit ? 'Nothing sent. Review, then run without --seed.' : 'Dry run — pass --commit to write the ledger.'
+  );
+  process.exit(0);
+}
+
+const formId = process.env[cfg.formEnv];
+
+// Person shape, shared by the link builder and the Slack step.
+const people = (s) => ({
+  student: {
+    first: s.nickname_first || s.name_first || '',
+    // Legal name on the signature line; the preferred name is for contact cards.
+    legalFirst: s.name_first || '',
+    last: s.name_last || '',
+    email: s.email || '',
+  },
+  guardian: {
+    legalFirst: s.parent_name_first || '',
+    last: s.parent_name_last || '',
+    email: s.parent_email || '',
+  },
+});
+
+// --links: print the packet links and stop. Useful for a mail merge.
+if (linksOnly) {
+  if (!formId) {
+    console.error(`\n${cfg.formEnv} is not set — cannot build packet links.\n`);
+    process.exit(1);
+  }
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    const { student, guardian } = people(s);
+    console.log(`${entry.participantId}\t${student.legalFirst} ${student.last}\t${guardian.email}`);
+    console.log(`  ${packetLink({ formId, participantId: entry.participantId, student, guardian })}\n`);
+  }
   process.exit(0);
 }
 
@@ -354,75 +439,48 @@ const channels = commit
       [cfg.parentChannel, '(dry-run)'],
     ]);
 
-const templateId = process.env[cfg.templateEnv];
+// One API call covers every student — cheaper and simpler than per-document polling.
+let submissions = new Map();
+if (formId && process.env.JOTFORM_API_KEY) {
+  submissions = indexByParticipant(await fetchSubmissions(formId));
+  console.log(`Jotform: ${submissions.size} submission(s) carrying a participant id\n`);
+} else {
+  console.log(`Jotform: skipped (${cfg.formEnv} or JOTFORM_API_KEY not set)\n`);
+}
+
 const actions = [];
 const worklist = [];
 
 for (const s of accepted) {
-  const key = String(s.PeopleID);
-  const entry = state.participants[key];
-  const who = `${s.name_first} ${s.name_last}`.trim();
-  const tag = `${entry.participantId} ${who}`;
+  const entry = state.participants[String(s.PeopleID)];
+  const { student, guardian } = people(s);
+  const tag = `${entry.participantId} ${s.name_first} ${s.name_last}`.trim();
 
-  // `first` is what a human would call them; `legalFirst` is what belongs on a
-  // signature line. FIRST stores a preferred name separately, so keep both.
-  const student = {
-    first: s.nickname_first || s.name_first || '',
-    legalFirst: s.name_first || '',
-    last: s.name_last || '',
-    email: s.email || '',
-  };
-  const guardian = {
-    first: s.parent_nickname_first || s.parent_name_first || '',
-    legalFirst: s.parent_name_first || '',
-    last: s.parent_name_last || '',
-    email: s.parent_email || '',
-  };
-
-  // ── 1. Send the packet ────────────────────────────────────────────────
-  if (!entry.packetSentAt) {
+  // ── 1. Issue the packet link ─────────────────────────────────────────
+  if (!entry.linkIssuedAt) {
     if (!guardian.email) {
-      worklist.push(`${tag}: no guardian email in FIRST — cannot send the packet`);
+      worklist.push(`${tag}: no guardian email in FIRST — cannot issue a packet`);
       continue;
     }
-    if (!templateId) {
-      worklist.push(`${tag}: ${cfg.templateEnv} is not set — cannot send the packet`);
+    if (!formId) {
+      worklist.push(`${tag}: ${cfg.formEnv} is not set — cannot build a packet link`);
       continue;
     }
-    const req = packetRequest({ templateId, participantId: entry.participantId, student, guardian, team });
-    if (commit) {
-      const res = await boldsign('/template/send', { method: 'POST', body: req });
-      entry.packetDocumentId = res.documentId ?? null;
-      entry.packetSentAt = new Date().toISOString();
-      actions.push(`${tag}: packet sent to ${guardian.email}`);
-    } else {
-      actions.push(`${tag}: would send packet to ${guardian.email}`);
-      console.log(`\n--- BoldSign request for ${tag} (verify against API Explorer) ---`);
-      console.log(JSON.stringify(req, null, 2));
-      console.log('---\n');
-    }
-    continue; // nothing further until it is signed
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian });
+    if (commit) entry.linkIssuedAt = new Date().toISOString();
+    actions.push(`${tag}: send this to ${guardian.email}\n      ${link}`);
+    continue; // nothing further until it comes back signed
   }
 
-  // ── 2. Has it been signed? ────────────────────────────────────────────
+  // ── 2. Has it come back? ─────────────────────────────────────────────
   if (!entry.signedAt) {
-    if (!commit) {
-      actions.push(`${tag}: would check signing status`);
+    const submission = submissions.get(entry.participantId.toUpperCase());
+    if (!submission) {
+      worklist.push(`${tag}: packet issued, not yet submitted`);
       continue;
     }
-    if (!entry.packetDocumentId) {
-      worklist.push(`${tag}: packet sent but no document id recorded — check BoldSign by hand`);
-      continue;
-    }
-    const props = await boldsign(`/document/properties?documentId=${encodeURIComponent(entry.packetDocumentId)}`);
-    const status = String(props.status ?? '').toLowerCase();
-    if (COMPLETED.has(status)) {
-      entry.signedAt = new Date().toISOString();
-      actions.push(`${tag}: packet completed`);
-    } else {
-      worklist.push(`${tag}: packet still ${props.status ?? 'pending'}`);
-      continue;
-    }
+    if (commit) entry.signedAt = submission.created_at ?? new Date().toISOString();
+    actions.push(`${tag}: packet completed`);
   }
 
   // ── 3. Signed — grant Slack access ───────────────────────────────────
@@ -452,7 +510,7 @@ for (const s of accepted) {
 
 if (commit) saveState(state);
 
-// ------------------------------------------------------------- report
+// -------------------------------------------------------------- report
 
 console.log(actions.length ? `Actions (${actions.length}):` : 'Actions: none');
 for (const a of actions) console.log(`  • ${a}`);
