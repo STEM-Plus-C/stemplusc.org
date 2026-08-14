@@ -29,3 +29,15 @@ photos/
 
 # Internal docs
 docs/
+
+# Participant data — NEVER commit. This repository is public on GitHub, and
+# git history is permanent: a CSV of minors' names, emails, and phone numbers
+# committed once is public forever, even if deleted in a later commit.
+# scripts/vcards.mjs refuses to read or write inside this working tree, but
+# these patterns are the backstop for a manual drag-and-drop.
+*.csv
+*.vcf
+*.vcard
+roster*
+participants*
+registrations*

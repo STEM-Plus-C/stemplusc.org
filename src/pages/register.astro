@@ -1,0 +1,149 @@
+---
+/**
+ * Registration landing page.
+ *
+ * Contains no form fields by design. This site is static and its source
+ * repository is public; participant data is collected in BoldSign, where the
+ * signatures already live. This page explains the process and hands off.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../consts';
+
+const { registration } = SITE;
+const linksLive = Boolean(registration.samurai || registration.jedi);
+
+const steps = [
+  {
+    title: 'Talk to a coach first',
+    body: 'Reach out before registering so we can confirm the program is a fit, answer questions, and tell you when to visit a meeting.',
+  },
+  {
+    title: 'Complete registration and sign',
+    body: 'A parent or guardian receives a secure link, provides contact and emergency information, and signs the Team Agreement and the Consent, Assumption of Risk, Release & Emergency Authorization. The student signs their own acknowledgment of the safety rules.',
+  },
+  {
+    title: 'Register with FIRST',
+    body: "Every student on an FRC or FTC team also completes FIRST's own consent and release through its registration system. Your coach walks you through it — it is required before a student can compete.",
+  },
+  {
+    title: 'Join the team Slack',
+    body: 'Once registration is complete, the student and family get access to our Slack workspace — schedules, announcements, shop access details, and competition information.',
+  },
+];
+---
+
+<BaseLayout
+  title="Register"
+  description="How to register a student for STEM+C robotics — Tie Dye Samurai (FRC) and Tie Dye Jedi (FTC). What we collect, what you sign, and what happens next."
+>
+  <!-- Hero -->
+  <section class="bg-navy text-white py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">Register</h1>
+      <p class="text-xl text-gray-200 max-w-2xl">
+        Four steps, one signing session. A parent or guardian completes registration for students
+        under 18.
+      </p>
+    </div>
+  </section>
+
+  <!-- Steps -->
+  <section class="py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-4">
+      <ol class="space-y-6 mb-12">
+        {steps.map((s, i) => (
+          <li class="flex items-start gap-5">
+            <span class="w-9 h-9 bg-brand-blue text-white rounded-full flex items-center justify-center shrink-0 font-bold">
+              {i + 1}
+            </span>
+            <div>
+              <h2 class="text-xl font-semibold text-navy mb-1">{s.title}</h2>
+              <p class="text-gray-700">{s.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {linksLive ? (
+        <div class="grid sm:grid-cols-2 gap-4">
+          {registration.samurai && (
+            <a href={registration.samurai} target="_blank" rel="noopener" class="block text-center bg-brand-blue text-white px-6 py-4 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
+              Register for Tie Dye Samurai<span class="block text-sm font-normal opacity-90">FRC · grades 9–12</span>
+            </a>
+          )}
+          {registration.jedi && (
+            <a href={registration.jedi} target="_blank" rel="noopener" class="block text-center bg-brand-purple text-white px-6 py-4 rounded-lg font-semibold hover:bg-purple-900 transition-colors">
+              Register for Tie Dye Jedi<span class="block text-sm font-normal opacity-90">FTC · grades 6–9</span>
+            </a>
+          )}
+        </div>
+      ) : (
+        <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg">
+          <p class="text-navy">
+            <strong>Registration for the 2026&ndash;2027 season opens soon.</strong> In the meantime,
+            email <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
+            or use our <a href="/contact" class="text-brand-blue hover:underline">contact form</a> and
+            we will get your student started.
+          </p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- What we collect -->
+  <section class="py-16 md:py-24 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4">
+      <h2 class="text-3xl font-bold mb-4">What we ask for, and why</h2>
+      <p class="text-gray-700 mb-8">
+        We collect the minimum needed to run a safe program and reach someone in an emergency.
+      </p>
+
+      <div class="space-y-4 mb-10">
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="font-semibold text-navy mb-2">About the student</h3>
+          <p class="text-gray-700 text-sm">
+            Name and grade. Email and phone are <strong>optional</strong> — for younger students we
+            would rather reach a parent. We do not ask for a date of birth.
+          </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="font-semibold text-navy mb-2">About parents and guardians</h3>
+          <p class="text-gray-700 text-sm">
+            Name, email, and phone for at least one parent or guardian, and a second if you want us
+            to be able to reach them. This is who we call first if something happens in the shop.
+          </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="font-semibold text-navy mb-2">Health and emergency information</h3>
+          <p class="text-gray-700 text-sm">
+            Allergies, medical conditions, activity restrictions, and medications our mentors would
+            need to know about in an emergency. Share only what is relevant to that.
+          </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="font-semibold text-navy mb-2">Your media choice</h3>
+          <p class="text-gray-700 text-sm">
+            Whether we may use photos and video of your student. It is a genuine choice and
+            <strong>not</strong> a condition of participation — students take part either way.
+          </p>
+        </div>
+      </div>
+
+      <div class="bg-navy text-white rounded-xl p-8">
+        <h3 class="text-xl font-semibold mb-3 text-white">A note on how this works</h3>
+        <p class="text-gray-300 mb-4">
+          Registration is completed by a <strong class="text-white">parent or guardian</strong>, not
+          by the student, and it happens on a secure signing platform rather than on this website.
+          This site collects nothing.
+        </p>
+        <p class="text-gray-300">
+          Full details are in our
+          <a href="/policies/privacy" class="text-brand-blue hover:underline">privacy notice</a>, and
+          the documents you will sign are published in advance on our
+          <a href="/policies" class="text-brand-blue hover:underline">policies page</a> — please read
+          them before you sign, not after.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

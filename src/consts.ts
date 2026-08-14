@@ -41,6 +41,19 @@ export const SITE = {
   },
 
   /**
+   * Registration links, per team. Null until the BoldSign templates are live;
+   * the Register page falls back to "contact your coach" while they are, so
+   * the page never advertises a link that does not work yet.
+   *
+   * These are signing-flow URLs, not forms on this site — participant data is
+   * never collected by this static site. See scripts/README.md.
+   */
+  registration: {
+    samurai: null as string | null,
+    jedi: null as string | null,
+  },
+
+  /**
    * Social media profiles — single source of truth for the footer links and
    * the JSON-LD `sameAs` array. Add/remove a profile here and both update.
    * `icon` is the SVG path data (24x24 viewBox) for the brand glyph, from
