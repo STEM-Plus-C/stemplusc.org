@@ -241,6 +241,88 @@ they print every time rather than hiding behind a flag.
 Each student card carries their guardians' names, phones, and emails in the
 notes, so one lookup during an emergency gets you everyone.
 
+## Onboarding accepted students — `onboard.mjs`
+
+Sends the signing packet, then — **once signed** — adds the student and their
+guardian to Slack. Signatures gate channel access, so a family that has not
+completed the packet (which carries the liability release) never lands in a
+channel.
+
+```
+FIRST: Accepted
+   ↓  send BoldSign packet, prefilled from the roster   → packetSentAt
+   ↓  poll BoldSign for completion                      → signedAt
+   ↓  look up guardian + student by email, invite       → slack.*
+   ↓  not in the workspace yet? → worklist, retry next run
+```
+
+Every run advances whoever can advance, so it is idempotent — run it whenever
+and it converges. Nothing is dropped; anything blocked appears in the report.
+
+### Dry run is the default
+
+This script emails documents to families and adds people to channels. Both are
+outward-facing and awkward to undo, so **nothing happens without `--commit`**.
+The dry run prints the exact BoldSign request body it would send — compare that
+against BoldSign's API Explorer before your first real run. The auth header and
+the document-properties endpoint are verified; the template-send body shape is
+not.
+
+```bash
+node scripts/onboard.mjs ~/Downloads/first-roster.json            # dry run
+node scripts/onboard.mjs ~/Downloads/first-roster.json --seed     # ledger only
+node scripts/onboard.mjs ~/Downloads/first-roster.json --commit   # act
+node scripts/onboard.mjs ~/Downloads/first-roster.json --mark-signed 6489569
+```
+
+### Two passes, because Slack requires it
+
+`conversations.invite` adds an **existing workspace member** to a channel, and
+`users.lookupByEmail` only finds people who have already joined. Programmatic
+*workspace* invites (`admin.users.invite`) are Enterprise Grid only — not
+available on the nonprofit Pro plan.
+
+So a brand-new family takes two passes: the first sends the packet and reports
+"invite these emails to Slack"; the next run picks up whoever has since joined.
+Putting the workspace invite link in the packet email lets most families
+self-serve.
+
+### Channels
+
+Resolved by name and verified up front — a typo or missing channel aborts the
+run rather than onboarding someone into nothing.
+
+| Team | Students | Parents |
+|---|---|---|
+| Tie Dye Samurai | `#all-tie-dye-samurai` | `#parents` |
+| Tie Dye Jedi | `#tie-dye-jedi-general` | `#jedi-parents` |
+
+The team is taken from the roster's own `TeamType`, so the right channels are
+chosen without a flag.
+
+### The ledger
+
+State lives at `~/STEMC-onboarding/state.json`, keyed by FIRST's `PeopleID`. It
+records **only what happened** — participant ID, packet sent/signed timestamps,
+channel status — and deliberately holds **no names, emails, or phone numbers**.
+Contact details are re-read from the roster each run, so the ledger never
+becomes a second copy of the PII.
+
+For the transition: `--seed` creates entries for everyone currently accepted
+without sending anything, so you can inspect first. `--mark-signed <peopleId>`
+records someone who signed outside BoldSign, so the script stops chasing them.
+
+### Environment
+
+Never commit these — this repository is public.
+
+| Variable | Purpose |
+|---|---|
+| `SLACK_BOT_TOKEN` | `xoxb-…` with `users:read`, `users:read.email`, `channels:read`, `channels:manage` (`groups:*` if the channels are private) |
+| `BOLDSIGN_API_KEY` | BoldSign API key |
+| `BOLDSIGN_TEMPLATE_SAMURAI` | Template id for the FRC packet |
+| `BOLDSIGN_TEMPLATE_JEDI` | Template id for the FTC packet |
+
 ## Handling rules
 
 - Never commit an export. `.gitignore` blocks `*.csv`, `*.vcf`, `*.vcard`,
