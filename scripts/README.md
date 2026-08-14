@@ -57,6 +57,10 @@ Export form data from BoldSign, then run `vcards.mjs` for contact cards (see
 below). The season roster is: participant ID, student name, grade, team, start
 date, and date signed.
 
+You can also build contact cards straight from FIRST, before BoldSign comes
+back — useful the moment a student is accepted. See *Getting the roster out of
+FIRST* below.
+
 ### Stage 4 — Budget
 
 Add the student to `FRC Budget.xlsx` with their **participant ID** and **start
@@ -168,14 +172,57 @@ Suggested templates:
 | Adult participant packet | Participant only (18+) |
 | Mentor / volunteer | Individual |
 
+## Getting the roster out of FIRST
+
+**FIRST has no CSV export.** The Team Roster page offers Expand All, Close All,
+and *Printable Roster* — and that last one is a print view, not a data export.
+
+It does not need one. The page carries the entire roster as JSON in a variable
+called `ContactRosterModel`, and that object holds exactly what contact cards
+need: student name, email and phone, parent/guardian name, email and phone,
+application status, and Consent & Release status.
+
+To save it:
+
+1. Open **Team Contacts → Team Roster** in the FIRST Dashboard.
+2. Open your browser's developer console (⌥⌘I on macOS, then the Console tab).
+3. Paste this and press enter — it downloads the roster to your Downloads
+   folder:
+
+   ```js
+   const blob = new Blob([JSON.stringify(ContactRosterModel, null, 2)], { type: 'application/json' });
+   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'first-roster.json' });
+   a.click();
+   ```
+
+4. Run `vcards.mjs` against the downloaded file. It detects the format
+   automatically.
+
+This is your own data in your own browser session — no API key, no third-party
+service, nothing leaving your machine. Delete the file when you are done.
+
+**What FIRST gives you, and what it does not.** Student and parent names and
+emails are reliable. **Phone numbers are frequently missing** — students often
+have none on file, and parent phone is regularly blank. FIRST also collects no
+second guardian, no grade, and no medical or emergency information. That gap is
+the reason the BoldSign step exists; it is not redundant with FIRST.
+
+Every run prints a **needs-attention list**: students whose application is not
+Accepted, students whose FIRST Consent & Release is not on record, and students
+with no reachable guardian. Those are the gaps that cost a student a season, so
+they print every time rather than hiding behind a flag.
+
 ## Generating contact cards
 
-1. In BoldSign: **Documents → Export Form Data** → save the CSV **outside this
-   repository** (your Desktop is fine — the script refuses to read from inside a
-   git working tree).
+1. Get a roster file, from either source, saved **outside this repository**
+   (Desktop or Downloads is fine — the script refuses to read from inside a git
+   working tree):
+   - **FIRST**: the `first-roster.json` from the console snippet above, or
+   - **BoldSign**: **Documents → Export Form Data** → save the CSV.
 2. Run:
 
    ```bash
+   node scripts/vcards.mjs ~/Downloads/first-roster.json
    node scripts/vcards.mjs ~/Desktop/export.csv
    ```
 

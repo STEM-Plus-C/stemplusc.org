@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 /**
- * Turn a BoldSign form-data export into vCard contact cards.
+ * Turn a roster export into vCard contact cards.
+ *
+ * Reads either source, detected from the file contents:
+ *
+ *   1. **FIRST Dashboard JSON** — the `ContactRosterModel` object embedded in
+ *      the Team Roster page. FIRST offers no CSV export ("Printable Roster" is
+ *      a print view), but the page carries the whole roster as JSON. See
+ *      scripts/README.md for the one-line console snippet that saves it.
+ *   2. **BoldSign CSV** — the form-data export, which adds the phone numbers
+ *      and second guardians FIRST does not collect.
  *
  * Deliberately a local script and not a web service. The registration data is
  * personal information about minors; running the conversion on your own
  * machine means it never reaches a server, a third party, or this repository —
- * which is public on GitHub, where a single committed CSV would be permanent.
+ * which is public on GitHub, where a single committed export would be permanent.
  *
  * Usage:
- *   node scripts/vcards.mjs <export.csv> [--out <dir>] [--team "Tie Dye Jedi"]
- *   node scripts/vcards.mjs <export.csv> --single      # one combined .vcf
- *   node scripts/vcards.mjs <export.csv> --dry-run     # report, write nothing
+ *   node scripts/vcards.mjs <roster.json|export.csv> [--out <dir>] [--team "Tie Dye Jedi"]
+ *   node scripts/vcards.mjs <file> --single      # one combined .vcf
+ *   node scripts/vcards.mjs <file> --dry-run     # report, write nothing
  *
  * Output defaults to ~/STEMC-vcards/<timestamp>/ — outside any git working
  * tree. The script refuses to read from or write into this repository.
@@ -119,6 +128,56 @@ function toRecords(rows) {
   });
 }
 
+// ------------------------------------------------------------ first json
+
+/**
+ * Normalize a phone number for display. FIRST stores whatever the family
+ * typed, which in practice includes bare digit strings and malformed
+ * separators, so 10- and 11-digit runs get reformatted and anything else is
+ * passed through untouched rather than mangled.
+ */
+function normalizePhone(raw) {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits[0] === '1') {
+    return `${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return String(raw).trim();
+}
+
+/**
+ * Map the FIRST Dashboard's roster shape onto the same record shape the CSV
+ * path produces, so everything downstream stays identical.
+ *
+ * Accepts the whole `ContactRosterModel`, a bare `TeamStudents` array, or the
+ * wizard model that wraps it.
+ */
+function recordsFromFirstJson(data) {
+  const model = data?.ContactRoster ?? data;
+  const students = Array.isArray(model) ? model : model?.TeamStudents;
+  if (!Array.isArray(students)) return null;
+
+  const teamName = model?.TeamNumber ? `Team ${model.TeamNumber}` : '';
+
+  return students.map((s) => ({
+    student_first: s.nickname_first || s.name_first || '',
+    student_last: s.name_last || '',
+    student_grade: '',
+    student_email: s.email || '',
+    student_phone: normalizePhone(s.phone),
+    parent1_first: s.parent_name_first || '',
+    parent1_last: s.parent_name_last || '',
+    parent1_email: s.parent_email || '',
+    parent1_phone: normalizePhone(s.parent_phone),
+    parent1_relationship: 'Parent/Guardian',
+    team: teamName,
+    // Carried through for the status report; not written to the cards.
+    _status: s.ApplicationStatus || '',
+    _consent: s.ConsentReleaseStatus === true,
+  }));
+}
+
 // ---------------------------------------------------------------- vcard
 
 /** Escape per RFC 6350 §3.4: backslash, comma, semicolon, newline. */
@@ -199,7 +258,35 @@ const dryRun = flag('dry-run');
 if (!dryRun) assertOutsideRepo(outDir, 'write contact cards');
 
 const defaultTeam = value('team', '');
-const records = toRecords(parseCsv(readFileSync(resolve(input), 'utf8')));
+const raw = readFileSync(resolve(input), 'utf8');
+
+// Detect the source by content rather than extension — the FIRST roster is
+// usually saved by hand and may land with any name.
+let records;
+let source;
+const trimmed = raw.trimStart();
+if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.error(`\nThat file starts like JSON but does not parse: ${err.message}\n`);
+    process.exit(1);
+  }
+  records = recordsFromFirstJson(parsed);
+  if (!records) {
+    console.error(
+      '\nJSON parsed, but no roster found. Expected a ContactRosterModel object\n' +
+        'with a TeamStudents array (see scripts/README.md).\n'
+    );
+    process.exit(1);
+  }
+  source = 'FIRST Dashboard JSON';
+} else {
+  records = toRecords(parseCsv(raw));
+  source = 'BoldSign CSV';
+}
+console.log(`Source: ${source}`);
 
 const cards = [];
 let skipped = 0;
@@ -265,6 +352,24 @@ for (const r of records) {
 
 console.log(`Parsed ${records.length} row(s) → ${cards.length} contact card(s)`);
 if (skipped) console.log(`Skipped ${skipped} row(s) with no student name`);
+
+// Exception report. These are the gaps that cost a student their season, so
+// they are printed every run rather than hidden behind a flag.
+const gaps = [];
+for (const r of records) {
+  const who = [r.student_first, r.student_last].filter(Boolean).join(' ');
+  if (!who) continue;
+  if (r._status && r._status !== 'Accepted') gaps.push(`${who}: application ${r._status}`);
+  if (r._consent === false) gaps.push(`${who}: FIRST Consent & Release not on record`);
+  if (!r.parent1_email) gaps.push(`${who}: no parent/guardian email`);
+  if (!r.parent1_phone) gaps.push(`${who}: no parent/guardian phone`);
+}
+if (gaps.length) {
+  console.log(`\nNeeds attention (${gaps.length}):`);
+  for (const g of gaps) console.log(`  • ${g}`);
+} else if (records.some((r) => r._status !== undefined)) {
+  console.log('\nNo gaps found — every student accepted, C&R on record, guardians reachable.');
+}
 
 if (dryRun) {
   console.log('\n--dry-run: nothing written. Cards that would be created:');

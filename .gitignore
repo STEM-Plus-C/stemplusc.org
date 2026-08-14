@@ -41,3 +41,9 @@ docs/
 roster*
 participants*
 registrations*
+# FIRST Dashboard roster JSON, however it gets named on save. Not a blanket
+# *.json rule — package.json and tsconfig.json must stay tracked.
+*roster*.json
+*Roster*.json
+contacts*.json
+first-*.json
