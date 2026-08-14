@@ -1,0 +1,149 @@
+---
+/**
+ * Shared chrome for the policy documents under /policies.
+ *
+ * These pages are meant to be *read as documents* — long-form, printable, and
+ * stable enough to cite by section. The layout supplies the title block,
+ * effective date, print button, and the prose styling every document shares so
+ * the documents themselves stay pure content.
+ *
+ * Prose styling is written out longhand rather than pulled from a typography
+ * plugin: this project has no `@tailwindcss/typography`, and the CSS-first v4
+ * setup keeps custom element styles in `@layer base` (see global.css).
+ */
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  /** Document title, e.g. "Student & Family Team Agreement". */
+  title: string;
+  /** Meta description for the page. */
+  description: string;
+  /** Human-readable period the document governs. */
+  effective: string;
+  /** Optional warning banner rendered above the document body. */
+  notice?: string;
+}
+
+const { title, description, effective, notice } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} noindex={true}>
+  <!-- Title block -->
+  <section class="bg-navy text-white py-12 md:py-16 print:bg-white print:text-navy print:py-4">
+    <div class="max-w-3xl mx-auto px-4">
+      <a
+        href="/policies"
+        class="text-sm text-brand-blue hover:underline print:hidden"
+      >&larr; All policies &amp; forms</a>
+      <h1 class="text-3xl md:text-4xl font-bold mt-3 mb-3 text-white print:text-navy">{title}</h1>
+      <p class="text-gray-300 print:text-gray-700">
+        A program policy of <strong class="text-white print:text-navy">STEM+C</strong>, a 501(c)(3) nonprofit &middot; EIN 83-3523903
+      </p>
+      <p class="text-gray-400 text-sm mt-1 print:text-gray-600">Effective {effective}</p>
+    </div>
+  </section>
+
+  {notice && (
+    <section class="bg-amber-50 border-y-2 border-amber-400">
+      <div class="max-w-3xl mx-auto px-4 py-5">
+        <p class="text-amber-900 text-sm leading-relaxed">
+          <strong class="block mb-1">⚠️ Not yet in effect — draft pending legal review</strong>
+          {notice}
+        </p>
+      </div>
+    </section>
+  )}
+
+  <!-- Document body -->
+  <section class="py-12 md:py-16">
+    <div
+      class="max-w-3xl mx-auto px-4 policy-doc"
+    >
+      <slot />
+
+      <div class="mt-12 pt-8 border-t border-gray-200 print:hidden">
+        <button
+          type="button"
+          data-print
+          class="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-900 transition-colors"
+        >
+          Print this document
+        </button>
+        <p class="text-sm text-gray-500 mt-4">
+          Questions about anything here? Email
+          <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
+          — we would always rather answer a question than have a family guess.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  document
+    .querySelector<HTMLButtonElement>('[data-print]')
+    ?.addEventListener('click', () => window.print());
+</script>
+
+<style>
+  /* Document typography. Scoped to .policy-doc so it never leaks into the
+     marketing pages, and expressed as element selectors so the document
+     content stays plain semantic HTML. */
+  .policy-doc :global(h2) {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .policy-doc :global(h2:first-child) {
+    margin-top: 0;
+  }
+
+  .policy-doc :global(h3) {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-navy);
+    margin-top: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .policy-doc :global(p) {
+    margin-bottom: 1rem;
+    line-height: 1.75;
+    color: #374151;
+  }
+
+  .policy-doc :global(ul),
+  .policy-doc :global(ol) {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+    line-height: 1.75;
+    color: #374151;
+  }
+
+  .policy-doc :global(ul) {
+    list-style-type: disc;
+  }
+
+  .policy-doc :global(ol) {
+    list-style-type: decimal;
+  }
+
+  .policy-doc :global(li) {
+    margin-bottom: 0.5rem;
+  }
+
+  .policy-doc :global(a) {
+    color: var(--color-brand-blue);
+    text-decoration: underline;
+  }
+
+  @media print {
+    .policy-doc :global(h2) {
+      break-after: avoid;
+    }
+  }
+</style>

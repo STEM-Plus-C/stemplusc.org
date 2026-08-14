@@ -8,12 +8,18 @@ interface Props {
   title: string;
   description?: string;
   image?: string;
+  /**
+   * Keep the page out of search results. Used for pages meant to be shared by
+   * link rather than browsed to (policy documents, family onboarding).
+   */
+  noindex?: boolean;
 }
 
 const {
   title,
   description = "STEM+C transforms students into engineers, innovators, and leaders through hands-on robotics, real-world projects, and industry mentorship in Gilbert, AZ.",
-  image = "/mascot.png"
+  image = "/mascot.png",
+  noindex = false
 } = Astro.props;
 
 const siteUrl = "https://stemplusc.org";
@@ -28,6 +34,7 @@ const ogImage = new URL(image, siteUrl).href;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />

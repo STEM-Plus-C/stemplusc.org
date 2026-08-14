@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Policies & Forms"
+  description="Team agreements, consent and release forms, and registration paperwork for families joining STEM+C robotics programs — Tie Dye Samurai (FRC) and Tie Dye Jedi (FTC)."
+>
+  <!-- Hero -->
+  <section class="bg-navy text-white py-16 md:py-24">
+    <div class="max-w-6xl mx-auto px-4">
+      <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white">Policies &amp; Forms</h1>
+      <p class="text-xl text-gray-200 max-w-2xl">
+        Everything a family signs, in one place — for both Tie Dye Samurai and Tie Dye Jedi.
+      </p>
+    </div>
+  </section>
+
+  <section class="py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-4">
+      <p class="text-lg text-gray-700 mb-10">
+        STEM+C is the 501(c)(3) nonprofit behind both robotics teams, so both teams use the same
+        paperwork. There are two documents, and families accept both once per season during
+        registration.
+      </p>
+
+      <div class="space-y-6">
+        <!-- Team Agreement -->
+        <div class="rounded-2xl border border-gray-200 shadow-sm p-8">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-brand-blue rounded-lg flex items-center justify-center shrink-0">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-navy mb-2">Student &amp; Family Team Agreement</h2>
+              <p class="text-gray-700 mb-4">
+                How we treat each other, what we expect around attendance and communication, shop and
+                safety rules, and how dues and family participation work. Signed by the student
+                <em>and</em> a parent or guardian.
+              </p>
+              <p class="text-sm text-gray-500 mb-4">
+                Replaces the separate Student Code of Conduct, Student Contract, and Parent Contract
+                used in earlier seasons.
+              </p>
+              <a href="/policies/team-agreement" class="inline-block bg-brand-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
+                Read the agreement
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Consent & Release -->
+        <div class="rounded-2xl border border-gray-200 shadow-sm p-8">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-brand-purple rounded-lg flex items-center justify-center shrink-0">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-navy mb-2">Consent, Release &amp; Hold Harmless</h2>
+              <p class="text-gray-700 mb-4">
+                Assumption of risk, release of liability, emergency medical authorization, and
+                permission to use photos and video of participants. Signed by a parent or guardian
+                for any participant under 18.
+              </p>
+              <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                <strong>Draft — pending legal review.</strong> Not yet in effect and not currently
+                collected for signature.
+              </p>
+              <a href="/policies/consent-release" class="inline-block bg-brand-purple text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-900 transition-colors">
+                Read the draft
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIRST forms note -->
+      <div class="bg-blue-50 border-l-4 border-brand-blue p-6 rounded-r-lg mt-10">
+        <h3 class="font-semibold text-navy mb-2">These are in addition to <em>FIRST</em>'s own forms</h3>
+        <p class="text-gray-700">
+          Every student on an FRC or FTC team also completes <em>FIRST</em>'s consent and release
+          through the <a href="https://www.firstinspires.org" target="_blank" rel="noopener" class="text-brand-blue hover:underline">FIRST</a> registration
+          system, separately from anything on this page. Your coach will walk you through it — it is
+          required before a student can compete.
+        </p>
+      </div>
+
+      <!-- How signing works -->
+      <div class="mt-10">
+        <h2 class="text-2xl font-bold text-navy mb-4">How signing works</h2>
+        <p class="text-gray-700 mb-4">
+          Families accept both documents during team registration — there is nothing to print, scan,
+          or mail. Your coach sends the registration link when a student joins.
+        </p>
+        <p class="text-gray-700">
+          If you need a copy of something you have already signed, or you would rather complete the
+          paperwork on paper, email
+          <a href="mailto:info@stemplusc.org" class="text-brand-blue hover:underline">info@stemplusc.org</a>
+          and we will sort it out.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
