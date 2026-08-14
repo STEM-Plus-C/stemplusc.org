@@ -64,8 +64,10 @@ const ogImage = new URL(image, siteUrl).href;
       "email": "info@stemplusc.org",
       "address": {
         "@type": "PostalAddress",
-        "addressLocality": "Gilbert",
-        "addressRegion": "AZ",
+        "streetAddress": SITE.address.street,
+        "addressLocality": SITE.address.locality,
+        "addressRegion": SITE.address.region,
+        "postalCode": SITE.address.postalCode,
         "addressCountry": "US"
       },
       "sameAs": [

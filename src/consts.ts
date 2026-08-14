@@ -26,6 +26,21 @@ export const SITE = {
   impact: "Building Arizona's future engineering workforce—one student at a time.",
 
   /**
+   * Physical location — single source of truth for the Contact page address
+   * block, its map embed, and the JSON-LD `PostalAddress`. Update here and all
+   * three follow. `entryNote` is the arrival instruction shown under the
+   * address; set it to an empty string to hide the line.
+   */
+  address: {
+    street: "21325 S 154th St",
+    locality: "Gilbert",
+    region: "AZ",
+    postalCode: "85298",
+    entryNote:
+      "Please enter through the gate — mind the dogs, and be sure to close it behind you.",
+  },
+
+  /**
    * Social media profiles — single source of truth for the footer links and
    * the JSON-LD `sameAs` array. Add/remove a profile here and both update.
    * `icon` is the SVG path data (24x24 viewBox) for the brand glyph, from
