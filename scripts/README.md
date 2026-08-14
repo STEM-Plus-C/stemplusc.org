@@ -236,6 +236,75 @@ Jotform → **Settings → API** → create a key. Put it in `JOTFORM_API_KEY` i
 environment, and the two form ids in `JOTFORM_FORM_SAMURAI` and
 `JOTFORM_FORM_JEDI`. Never in this repository — it is public.
 
+The form id is the number in the form's URL:
+`https://www.jotform.com/build/`**`250123456789`**.
+
+### Building the forms, step by step
+
+Build one, then use Jotform's **Clone Form** to make the second and change the
+`team` default — the two forms are identical apart from that.
+
+1. **Create the form.** Jotform → Create Form → Start from Scratch.
+2. **Add the 19 fields** from the table above, in that order. Types are in the
+   table; the order is what a family reads, so keep student fields together and
+   guardian fields together.
+3. **Set each unique name.** This is the step that matters and the one that is
+   easy to get wrong. Click a field → the gear icon → **Advanced** → **Field
+   Details** → **Unique Name**. Type it exactly as the table has it — lowercase,
+   underscores, no spaces. The label shown to families can say whatever you
+   like; the unique name is what the scripts key on.
+4. **Make `participant_id` read-only.** Advanced → Read Only. It arrives
+   prefilled from the packet link and a family should never change it. Hiding it
+   entirely also works.
+5. **Set the required flags** per the table.
+6. **Add the conditional rule.** Settings → **Conditions** → Add Condition →
+   *Show/Hide Field*: `IF student_grade IS 6` → *Hide* `student_email` and
+   `student_phone`. Add a second condition for grade 7.
+7. **Configure `media_choice`.** A radio group with exactly two options, **no
+   default selected**, and confirm the form still submits with either answer.
+   Section 7 of the consent agreement requires it be a genuine choice and not a
+   condition of participation.
+8. **Set up signing.** Jotform Sign, two signers: the parent/guardian signs the
+   Team Agreement and the Consent, Assumption of Risk, Release & Emergency
+   Authorization; the student signs the safety-rules acknowledgment only. Link
+   [stemplusc.org/policies](https://stemplusc.org/policies) from the form so
+   families can read the documents before signing.
+9. **Verify it.** See below.
+10. **Clone for the other team**, change the `team` field's default, and verify
+    that one too.
+
+### Verifying the forms
+
+```bash
+export JOTFORM_API_KEY=…
+export JOTFORM_FORM_SAMURAI=…  JOTFORM_FORM_JEDI=…
+node scripts/jotform-check.mjs
+```
+
+It reads each form through a read-only endpoint and reports every unique name
+that is missing, misspelled, or the wrong control type — with a "did you mean"
+when a near-miss looks like a typo. It changes nothing.
+
+Run it after building, and again after any edit to a form. A renamed or retyped
+unique name breaks matching **silently**: `onboard.mjs` simply stops finding
+submissions, and you would not notice until a family had already filled the form
+in and nobody got added to Slack.
+
+Three things it cannot see, so check them by hand in the builder:
+
+- the conditional rule actually hides the two student fields at grades 6 and 7
+- both signers are configured, signing the right documents
+- `media_choice` has no preselected option and does not block submission
+
+### Why the forms are not built by script
+
+Jotform's API is, in their own words, "mostly read only". Form creation exists
+in their SDKs but the request shape is not in the public reference, and guessing
+at an undocumented shape is how the BoldSign version of this ended up
+untestable. Building two forms once a season is a half hour; verifying them
+automatically is where the leverage actually is, because that is the part you
+would otherwise repeat every time you touch a field.
+
 ## Getting the roster out of FIRST
 
 **FIRST has no CSV export.** The Team Roster page offers Expand All, Close All,
