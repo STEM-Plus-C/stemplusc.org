@@ -205,6 +205,22 @@ comfortably over 13; 6–7 is where under-13 participants live.
 
 ### Signatures
 
+**Both signatures are captured in the form and are required**, so the form
+cannot be submitted unsigned. That is what lets `onboard.mjs` treat a
+submission as proof of signature.
+
+Do not move signing to a post-submission Jotform Sign request. If signatures are
+requested by email after submit, a submission exists before anyone has signed,
+and the script would add families to Slack with an unsigned liability release —
+silently. `jotform-check.mjs` enforces the required flags for this reason.
+
+The student signs **in session** rather than by email: `student_email` is
+optional and, for younger students, may not exist at all. Routing their
+signature to an address we deliberately do not collect would stall every
+under-13 registration. The parent fills the form and hands over the device —
+which is what the Team Agreement already assumes when it asks families to read
+it together.
+
 Configure the form for **two signers** via Jotform Sign:
 
 | Signer | Signs | Notes |

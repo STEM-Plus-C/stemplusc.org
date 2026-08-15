@@ -476,6 +476,17 @@ for (const s of accepted) {
   }
 
   // ── 2. Has it come back? ─────────────────────────────────────────────
+  //
+  // A submission is treated as proof of signature. That is only sound because
+  // both signature fields are REQUIRED on the form, so it cannot be submitted
+  // unsigned — the signing happens in the form, not as an emailed request
+  // afterwards.
+  //
+  // If anyone ever makes a signature optional, or moves signing to a
+  // post-submission Jotform Sign request, this stops being true: a submission
+  // would exist before anyone signed, and families would be let into Slack
+  // with an unsigned liability release. jotform-check.mjs enforces the
+  // required flags for exactly this reason.
   if (!entry.signedAt) {
     const submission = submissions.get(entry.participantId.toUpperCase());
     if (!submission) {

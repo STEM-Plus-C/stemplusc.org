@@ -27,6 +27,14 @@ const JOTFORM = 'https://api.jotform.com';
  * type is a warning rather than a failure, because a phone captured in a plain
  * textbox still works — except for `media_choice`, where the consent agreement
  * requires a genuine either/or choice and a checkbox will not do.
+ *
+ * There is deliberately no "I have read this" checkbox. The signature is the
+ * acknowledgment. The consent agreement's electronic-signature section asks for
+ * four separate acknowledgments — adult participant, parent/guardian, the
+ * minor's acknowledgment of safety rules, and the media choice — which are the
+ * two signatures and the media radio, not a read receipt in front of them.
+ * What the agreement does require is that its text be available before
+ * acceptance, so the form links both documents above the signatures.
  */
 const SPEC = [
   { name: 'participant_id', required: true, types: ['control_textbox'], note: 'prefilled by the packet link; read-only or hidden' },
@@ -48,6 +56,8 @@ const SPEC = [
   { name: 'parent2_relationship', required: false, types: ['control_dropdown'] },
   { name: 'medical_notes', required: false, types: ['control_textarea', 'control_textbox'] },
   { name: 'media_choice', required: true, types: ['control_radio'], strictType: true, note: 'must be a radio group, never a checkbox — see consent agreement §7' },
+  { name: 'parent_signature', required: true, types: ['control_signature'], strictType: true, note: 'parent/guardian signs both documents — label it so it is clear what is being signed; enable Sign Automation for the audit trail' },
+  { name: 'student_signature', required: true, types: ['control_signature'], strictType: true, note: 'student signs the safety-rules acknowledgment' },
 ];
 
 /** Names the packet link prefills; these must exist or prefilling silently no-ops. */
