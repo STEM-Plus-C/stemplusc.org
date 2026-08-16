@@ -665,8 +665,24 @@ for (const s of accepted) {
   const { student, guardian } = people(s);
   const tag = `${entry.participantId} ${s.name_first} ${s.name_last}`.trim();
 
+  // ── 0. Already submitted? ────────────────────────────────────────────
+  //
+  // Checked before anything else, because a submission is the fact that
+  // matters and it can exist without us having recorded issuing a link — the
+  // link may have been sent by other means, the ledger may have been reset, or
+  // every run so far may have been a dry run. Gating the submission check
+  // behind linkIssuedAt meant a completed packet went unnoticed indefinitely.
+  const existing = submissions.get(entry.participantId.toUpperCase());
+  if (existing && !entry.signedAt) {
+    if (commit) {
+      entry.signedAt = existing.created_at ?? new Date().toISOString();
+      entry.linkIssuedAt = entry.linkIssuedAt ?? entry.signedAt;
+    }
+    actions.push(`${tag}: packet completed`);
+  }
+
   // ── 1. Issue the packet link ─────────────────────────────────────────
-  if (!entry.linkIssuedAt) {
+  if (!entry.linkIssuedAt && !entry.signedAt && !existing) {
     if (!guardian.email) {
       worklist.push(`${tag}: no guardian email in FIRST — cannot issue a packet`);
       continue;
@@ -681,7 +697,7 @@ for (const s of accepted) {
     continue; // nothing further until it comes back signed
   }
 
-  // ── 2. Has it come back? ─────────────────────────────────────────────
+  // ── 2. Still waiting? ────────────────────────────────────────────────
   //
   // A submission is treated as proof of signature. That is only sound because
   // both signature fields are REQUIRED on the form, so it cannot be submitted
@@ -693,14 +709,14 @@ for (const s of accepted) {
   // would exist before anyone signed, and families would be let into Slack
   // with an unsigned liability release. jotform-check.mjs enforces the
   // required flags for exactly this reason.
-  if (!entry.signedAt) {
-    const submission = submissions.get(entry.participantId.toUpperCase());
-    if (!submission) {
-      worklist.push(`${tag}: packet issued, not yet submitted`);
-      continue;
-    }
-    if (commit) entry.signedAt = submission.created_at ?? new Date().toISOString();
-    actions.push(`${tag}: packet completed`);
+  if (!entry.signedAt && !existing) {
+    worklist.push(`${tag}: packet issued, not yet submitted`);
+    continue;
+  }
+  if (!commit && existing) {
+    // Dry run: nothing was persisted, so do not pretend the Slack steps ran.
+    actions.push(`${tag}: would record as signed, then add to Slack`);
+    continue;
   }
 
   // ── 3. Signed — grant Slack access ───────────────────────────────────
