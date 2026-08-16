@@ -331,7 +331,26 @@ called `ContactRosterModel`, holding exactly what we need: student name, email
 and phone, parent/guardian name, email and phone, application status, and
 Consent & Release status.
 
-### Save the page (recommended)
+### One click: the bookmarklet (easiest)
+
+Make a bookmark whose address is the line below, then click it while the Team
+Roster page is open. It downloads `first-roster-frc-10933.json` — named from
+the team, so the two rosters cannot be confused.
+
+- **Safari**: Bookmarks → Add Bookmark on any page, then Bookmarks → Edit
+  Bookmarks, right-click it → Edit Address, and paste.
+- **Chrome**: Bookmark manager → ⋮ → Add new bookmark, paste into URL.
+
+```
+javascript:(()=>{const g=w=>{try{return w.ContactRosterModel}catch(e){return null}};let m=g(window);if(!m)for(let i=0;i<window.frames.length;i++){m=g(window.frames[i]);if(m)break}if(!m)return alert('Roster not found.\n\nOpen Team Contacts → Team Roster and wait for it to load, then click again.');const t=(m.TeamType||'team').toLowerCase(),n=m.TeamNumber||'';const b=new Blob([JSON.stringify(m,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='first-roster-'+t+(n?'-'+n:'')+'.json';document.body.appendChild(a);a.click();a.remove();})()
+```
+
+It searches the page's frames, so the iframe problem that breaks the console
+approach does not apply. No credentials involved — it only reads what your
+browser has already loaded.
+
+### Save the page (also fine)
+
 
 1. Open **Team Contacts → Team Roster** in the FIRST Dashboard and wait for the
    roster to appear.
