@@ -40,6 +40,7 @@
  * Usage:
  *   node scripts/onboard.mjs <roster.json> [--commit] [--seed]
  *   node scripts/onboard.mjs <roster.json> --links        # print links, do nothing else
+ *   node scripts/onboard.mjs <roster.json> --email        # print ready-to-send emails
  *   node scripts/onboard.mjs <roster.json> --mark-signed <peopleId>
  *   node scripts/onboard.mjs <roster.json> --state <path>
  *
@@ -69,6 +70,8 @@ const TEAMS = {
     studentChannel: 'all-tie-dye-samurai',
     parentChannel: 'parents',
     formEnv: 'JOTFORM_FORM_SAMURAI',
+    program: 'FIRST Robotics Competition',
+    welcomeUrl: 'https://tiedyesamurai.org/welcome',
   },
   jedi: {
     label: 'Tie Dye Jedi',
@@ -76,11 +79,31 @@ const TEAMS = {
     studentChannel: 'tie-dye-jedi-general',
     parentChannel: 'jedi-parents',
     formEnv: 'JOTFORM_FORM_JEDI',
+    program: 'FIRST Tech Challenge',
+    welcomeUrl: 'https://tiedyejedi.org/welcome',
   },
 };
 
 /** Two-digit season suffix used in participant ids, e.g. TDS-27-004. */
 const SEASON = '27';
+
+/** Human-readable season, for the packet email. */
+const SEASON_LABEL = '2026–2027';
+
+/** Sign-off on the packet email. Update when the coach changes. */
+const SIGNATURE = [
+  'Steven Klass',
+  'Founder & Executive Director, STEM+C',
+  'Head Coach, Tie Dye Samurai — FRC Team 10933',
+  'steven@stemplusc.org',
+].join('\n');
+
+/** Where the policy documents live. Linked from the email and the form. */
+const POLICIES = {
+  teamAgreement: 'https://stemplusc.org/policies/team-agreement',
+  consentRelease: 'https://stemplusc.org/policies/consent-release',
+  privacy: 'https://stemplusc.org/policies/privacy',
+};
 
 /**
  * Jotform field unique names. Set these on each field in the form builder.
@@ -120,6 +143,7 @@ const val = (f, d) => {
 const commit = has('commit');
 const seedOnly = has('seed');
 const linksOnly = has('links');
+const emailOnly = has('email');
 const markSigned = val('mark-signed', null);
 const rosterPath = argv.find(
   (a, i) => !a.startsWith('--') && !['--state', '--mark-signed'].includes(argv[i - 1])
@@ -127,7 +151,7 @@ const rosterPath = argv.find(
 
 if (!rosterPath) {
   console.error(
-    'Usage: node scripts/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--mark-signed <peopleId>]'
+    'Usage: node scripts/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]'
   );
   process.exit(1);
 }
@@ -384,6 +408,57 @@ function packetLink({ formId, participantId, student, guardian, team }) {
   return `https://form.jotform.com/${formId}?${params}`;
 }
 
+/**
+ * The packet email, ready to send.
+ *
+ * Lives here rather than in a doc so every family gets the same message and it
+ * cannot drift from what the link actually does. Deliberately carries no dues
+ * figures: those change per team and per season, and an email that quotes them
+ * is wrong the moment they change. One link that is always right beats a number
+ * that quietly is not.
+ */
+function packetEmail({ team, participantId, student, guardian, link }) {
+  const cfg = TEAMS[team];
+  const kid = student.first || student.legalFirst;
+  const parent = guardian.legalFirst;
+
+  const subject = `Welcome to ${cfg.label} — your registration link (${SEASON_LABEL} season)`;
+
+  const body = `Hi ${parent},
+
+Welcome to ${cfg.label}! We're glad to have ${kid} joining us for the ${SEASON_LABEL} ${cfg.program} season.
+
+Your registration link is below. It's already filled in with what we have on file, so it should take about five minutes:
+
+${link}
+
+A few notes before you start:
+
+- A parent or guardian completes this, not the student — but your student does need to be with you at the end to sign their own acknowledgment of our safety rules. Easiest to do it together in one sitting.
+
+- Please read the two documents before you sign them. They're linked in the form, and also here:
+  Student & Family Team Agreement: ${POLICIES.teamAgreement}
+  Consent, Assumption of Risk, Release & Emergency Authorization: ${POLICIES.consentRelease}
+
+- The second one describes real hazards — power tools, machine-shop equipment, heavy robots, travel — and it affects legal rights. It's worth ten minutes of your time.
+
+- The media permission is optional and doesn't affect ${kid}'s participation. Either answer is fine.
+
+- Our Privacy Notice explains what we do with the information you provide: ${POLICIES.privacy}
+
+What happens next: once you've submitted, we'll make sure you and ${kid} are in our team Slack — that's where schedules, announcements, and shop access details live. If you're already in there, nothing changes; if not, you'll get an invitation.
+
+Everything else you need — meeting schedule, season timeline, dues, what to wear in the shop, how to help — is here: ${cfg.welcomeUrl}
+
+Questions about anything, including dues, just reply to this email. We'd always rather answer than have a family guess.
+
+Welcome to the Tie Dye family.
+
+${SIGNATURE}`;
+
+  return { subject, body, to: guardian.email, participantId };
+}
+
 // --------------------------------------------------------------- slack
 
 async function slack(method, params = {}, post = false) {
@@ -525,6 +600,31 @@ const people = (s) => ({
     phone: s.parent_phone || '',
   },
 });
+
+// --email: print a ready-to-send email per student and stop.
+if (emailOnly) {
+  if (!formId) {
+    console.error(`\n${cfg.formEnv} is not set — cannot build packet links.\n`);
+    process.exit(1);
+  }
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    const { student, guardian } = people(s);
+    if (!guardian.email) {
+      console.log(`\n${'='.repeat(72)}\n${entry.participantId} — no guardian email in FIRST, cannot send\n`);
+      continue;
+    }
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian, team });
+    const mail = packetEmail({ team, participantId: entry.participantId, student, guardian, link });
+    console.log(`\n${'='.repeat(72)}`);
+    console.log(`To:      ${mail.to}`);
+    console.log(`Subject: ${mail.subject}`);
+    console.log(`${'-'.repeat(72)}`);
+    console.log(mail.body);
+  }
+  console.log(`\n${'='.repeat(72)}\n`);
+  process.exit(0);
+}
 
 // --links: print the packet links and stop. Useful for a mail merge.
 if (linksOnly) {
