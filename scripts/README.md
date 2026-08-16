@@ -323,89 +323,85 @@ would otherwise repeat every time you touch a field.
 
 ## Getting the roster out of FIRST
 
-**FIRST has no CSV export.** The Team Roster page offers Expand All, Close All,
-and *Printable Roster* — and that last one is a print view, not a data export.
+FIRST has no export. The Team Roster page holds the whole roster in a
+JavaScript variable, and a bookmarklet pulls it out in one click.
 
-It does not need one. The page carries the entire roster as JSON in a variable
-called `ContactRosterModel`, holding exactly what we need: student name, email
-and phone, parent/guardian name, email and phone, application status, and
-Consent & Release status.
+**Order matters:** be *on the roster page* before you click the bookmarklet. It
+reads what the browser has loaded, so clicking it from the dashboard, the team
+profile, or anywhere else finds nothing. That is the mistake to expect.
 
-### One click: the bookmarklet (easiest)
+### One-time setup
 
-Make a bookmark whose address is the line below, then click it while the Team
-Roster page is open. It downloads `first-roster-frc-10933.json` — named from
-the team, so the two rosters cannot be confused.
-
-- **Safari**: Bookmarks → Add Bookmark on any page, then Bookmarks → Edit
-  Bookmarks, right-click it → Edit Address, and paste.
-- **Chrome**: Bookmark manager → ⋮ → Add new bookmark, paste into URL.
+Make a bookmark whose **address** is this entire line:
 
 ```
-javascript:(()=>{const g=w=>{try{return w.ContactRosterModel}catch(e){return null}};let m=g(window);if(!m)for(let i=0;i<window.frames.length;i++){m=g(window.frames[i]);if(m)break}if(!m)return alert('Roster not found.\n\nOpen Team Contacts → Team Roster and wait for it to load, then click again.');const t=(m.TeamType||'team').toLowerCase(),n=m.TeamNumber||'';const b=new Blob([JSON.stringify(m,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='first-roster-'+t+(n?'-'+n:'')+'.json';document.body.appendChild(a);a.click();a.remove();})()
+javascript:(()=>{let seen=0,blocked=0;const find=(w,d)=>{seen++;try{if(w.ContactRosterModel)return w.ContactRosterModel}catch(e){blocked++;return null}if(d>5)return null;let n=0;try{n=w.frames.length}catch(e){blocked++;return null}for(let i=0;i<n;i++){try{const r=find(w.frames[i],d+1);if(r)return r}catch(e){blocked++}}return null};let root=window;try{root=window.top}catch(e){}const m=find(root,0);if(!m){alert('Roster not found.\n\nSearched '+seen+' frame(s), '+blocked+' inaccessible.\n\nMake sure the Team Roster tab is open and the roster is visible, then click again.');return}const t=(m.TeamType||'team').toLowerCase(),n=m.TeamNumber||'',c=(m.TeamStudents||[]).length;const b=new Blob([JSON.stringify(m,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='first-roster-'+t+(n?'-'+n:'')+'.json';document.body.appendChild(a);a.click();a.remove();alert('Saved first-roster-'+t+'-'+n+'.json  ('+c+' students)');})()
 ```
 
-It searches the page's frames, so the iframe problem that breaks the console
-approach does not apply. No credentials involved — it only reads what your
-browser has already loaded.
+- **Safari** — Bookmarks → Add Bookmark (on any page), name it `Get Roster`,
+  save to Favorites. Then Bookmarks → Edit Bookmarks, right-click it → **Edit
+  Address**, paste, Enter.
+- **Chrome** — Bookmark manager → ⋮ → **Add new bookmark**, paste into URL.
 
-### Save the page (also fine)
+### Every time you need the roster
 
-
-1. Open **Team Contacts → Team Roster** in the FIRST Dashboard and wait for the
-   roster to appear.
-2. **File → Save Page As…**, into your Downloads folder.
-   - **Safari**: set Format to **Page Source** (not Web Archive).
-   - **Chrome**: choose **Webpage, HTML Only**.
-3. Point the scripts at the saved `.html` file. They find the roster inside it.
+1. Open the FIRST Dashboard and go into the team you want.
+2. Navigate to **Team Contacts → Team Roster**.
+3. **Wait for the roster to actually appear on screen** — student cards
+   visible, not a spinner.
+4. *Now* click **Get Roster**.
+5. It confirms with `Saved first-roster-frc-10933.json (3 students)` and the
+   file lands in Downloads, named from the team so the two rosters cannot be
+   mixed up.
 
 ```bash
-node scripts/onboard.mjs ~/Downloads/TeamRoster.html --seed --commit
-node scripts/vcards.mjs  ~/Downloads/TeamRoster.html
+node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json --seed --commit
+node scripts/vcards.mjs  ~/Downloads/first-roster-frc-10933.json
 ```
 
-That is it. No console, no pasted code.
+Repeat from step 1 for the other team — its roster saves under its own name.
 
-### Why not the browser console
+**Delete the file when you are done.** It holds minors' names, emails, and
+phone numbers.
 
-The obvious approach — paste a snippet into the console and download the
-variable — fails in practice. The roster renders inside an **iframe**, so
-`ContactRosterModel` is not in the console's default scope and you get
-`ReferenceError: Can't find variable`. Browsers also increasingly warn about
-pasting into the console at all, for good reason.
+### If it says "Roster not found"
 
-If you would rather use the console anyway, this version searches the frames
-and can be run more than once without a duplicate-variable error:
+The alert reports how many frames it searched and how many it could not reach.
 
-```js
-(() => {
-  const grab = (w) => { try { return w.ContactRosterModel; } catch { return null; } };
-  let model = grab(window);
-  if (!model) for (const f of window.frames) { model = grab(f); if (model) break; }
-  if (!model) return console.error('Roster not found — open the Team Roster tab first.');
-  const blob = new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'first-roster.json';
-  a.click();
-})();
-```
+| Message | Meaning |
+|---|---|
+| Searched 1, 0 inaccessible | Not on the roster page — go back to step 2 |
+| Searched several, 0 inaccessible | On the right page but the roster had not finished loading — wait, click again |
+| Some inaccessible | Cross-origin frames are blocking it; tell me the numbers |
 
-Both scripts accept either input — a saved `.html` page or a `.json` file —
-detected from the contents, so it does not matter which route you take.
+Nearly always it is the first one.
+
+### Why not save the page, or use the console
+
+Both fail, for the same reason, and both are worth not retrying:
+
+- **Save Page As** captures only the outer document. The roster loads inside an
+  iframe (`id="rp"`), so the saved file is the dashboard wrapper with no roster
+  in it. The file looks plausible — a few hundred KB — and contains nothing
+  useful.
+- **Pasting a snippet into the console** runs in the top frame, where the
+  variable does not exist. You get `ReferenceError: Can't find variable:
+  ContactRosterModel`.
+
+The bookmarklet searches nested frames from the top window down, which is what
+neither of the above does.
+
+Both scripts also accept a `.json` file or a saved `.html` page, so if you ever
+do get an unwrapped page some other way, it will still work.
 
 **What FIRST gives you, and what it does not.** Student and parent names and
-emails are reliable. **Phone numbers are frequently missing.** FIRST also
-collects no second guardian, no grade, and no medical or emergency information.
-That gap is the reason the Jotform step exists; it is not redundant with FIRST.
+emails are reliable. **Phone numbers are frequently missing.** FIRST collects no
+second guardian, no grade, and no medical or emergency information — which is
+why the Jotform step is not redundant with it.
 
-Every run prints a **needs-attention list**: students whose application is not
-Accepted, students whose FIRST Consent & Release is not on record, and students
-with no reachable guardian. Those are the gaps that cost a student a season, so
-they print every time rather than hiding behind a flag.
-
-**Delete the saved page when you are done** — it holds minors' names, emails,
-and phone numbers.
+Every run prints a **needs-attention list**: applications not yet accepted,
+missing FIRST Consent & Release, and students with no reachable guardian. Those
+are the gaps that cost a student a season, so they print every time.
 
 ## Generating contact cards
 
