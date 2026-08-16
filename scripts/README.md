@@ -1,6 +1,68 @@
-# Registration data → contact cards
+# Registration and onboarding
 
-How participant data is collected, and how to turn it into contact cards.
+How a student gets from "my kid wants to join" to signed, paid, and in Slack —
+and the scripts that carry the data between the systems involved.
+
+---
+
+## Start here
+
+### One-time setup
+
+| | |
+|---|---|
+| ✅ | Both Jotform forms built and verified (`jotform-check.mjs`) |
+| ✅ | Policy documents published at stemplusc.org/policies, with PDFs |
+| ✅ | Roster bookmarklet installed |
+| ✅ | `.env` holding the Jotform key and both form ids |
+| ☐ | **Slack bot installed and invited to all four channels** |
+| ☐ | **tiedyesamurai.org and tiedyejedi.org deployed** |
+
+The Slack bot has to be a *member* of `#parents`, `#all-tie-dye-samurai`,
+`#jedi-parents`, and `#tie-dye-jedi-general` — `conversations.invite` fails
+otherwise. Add it with `/invite @yourbot` in each.
+
+### When a student is approved
+
+```bash
+cd /Volumes/Development/stemplusc.org
+set -a; source .env; set +a
+```
+
+1. **Accept them in the FIRST Dashboard.**
+2. **Get the roster** — open Team Contacts → Team Roster, wait for it to load,
+   click the **Get Roster** bookmark.
+3. **Assign participant ids:**
+   ```bash
+   node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json --seed --commit
+   ```
+4. **Get their packet link:**
+   ```bash
+   node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json
+   ```
+   Send the printed link. It arrives prefilled with everything FIRST knows.
+5. **After they submit**, re-run the same command with `--commit`. The script
+   sees the submission, records it as signed, and adds the family to Slack.
+   Anyone not yet in the workspace lands on the worklist — invite them, run it
+   again.
+6. **Contact cards**, whenever you want them:
+   ```bash
+   node scripts/vcards.mjs ~/Downloads/first-roster-frc-10933.json
+   ```
+
+Steps 3–5 are safe to re-run at any time; every run advances whoever can
+advance and reports whoever is stuck.
+
+### At the start of each season
+
+- `SEASON` in `scripts/onboard.mjs` — the participant id prefix
+- `SITE.dues` in each team repo — the four numbers that change
+- `SITE.joinUrl` in each team repo — **FIRST issues new join links each season,
+  and a stale one silently drops every family that clicks it**
+- Rebuild the Jotform forms' grade options if the range shifts
+- `npm run policies:pdf` after any policy edit, then redeploy
+
+---
 
 ---
 
