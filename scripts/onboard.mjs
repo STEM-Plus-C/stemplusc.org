@@ -97,6 +97,7 @@ const FIELDS = {
   studentFirst: 'student_first',
   studentLast: 'student_last',
   parentEmail: 'parent1_email',
+  team: 'team',
 };
 
 const SLACK = 'https://slack.com/api';
@@ -270,12 +271,15 @@ function indexByParticipant(submissions) {
 }
 
 /** Prefilled form URL. The participant id is what makes matching reliable. */
-function packetLink({ formId, participantId, student, guardian }) {
+function packetLink({ formId, participantId, student, guardian, team }) {
   const params = new URLSearchParams({
     [FIELDS.participantId]: participantId,
     [FIELDS.studentFirst]: student.legalFirst,
     [FIELDS.studentLast]: student.last,
     [FIELDS.parentEmail]: guardian.email,
+    // The team dropdown has exactly one option per form, so making a family
+    // pick it is a required click with no decision in it.
+    [FIELDS.team]: TEAMS[team].label,
   });
   return `https://form.jotform.com/${formId}?${params}`;
 }
@@ -430,7 +434,7 @@ if (linksOnly) {
     const entry = state.participants[String(s.PeopleID)];
     const { student, guardian } = people(s);
     console.log(`${entry.participantId}\t${student.legalFirst} ${student.last}\t${guardian.email}`);
-    console.log(`  ${packetLink({ formId, participantId: entry.participantId, student, guardian })}\n`);
+    console.log(`  ${packetLink({ formId, participantId: entry.participantId, student, guardian, team })}\n`);
   }
   process.exit(0);
 }
@@ -469,7 +473,7 @@ for (const s of accepted) {
       worklist.push(`${tag}: ${cfg.formEnv} is not set — cannot build a packet link`);
       continue;
     }
-    const link = packetLink({ formId, participantId: entry.participantId, student, guardian });
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian, team });
     if (commit) entry.linkIssuedAt = new Date().toISOString();
     actions.push(`${tag}: send this to ${guardian.email}\n      ${link}`);
     continue; // nothing further until it comes back signed
