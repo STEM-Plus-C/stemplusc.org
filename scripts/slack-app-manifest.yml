@@ -7,7 +7,7 @@
 # Then copy the Bot User OAuth Token (starts xoxb-) into SLACK_BOT_TOKEN in
 # your .env, and invite the bot into each channel it needs to work in:
 #
-#   /invite @STEM+C Onboarding
+#   /invite @stemplusc-onboarding
 #
 # in #parents, #all-tie-dye-samurai, #jedi-parents, and #tie-dye-jedi-general.
 # conversations.invite requires the caller to be a member of the channel, so
@@ -17,13 +17,15 @@
 # channels; it cannot read messages, post, or see file contents.
 
 display_information:
-  name: STEM+C Onboarding
+  # No "+" — Slack rejects it in app names as well as bot handles.
+  name: STEMC Onboarding
   description: Adds registered families to their team channels once paperwork is signed.
   background_color: "#081f3f"
 
 features:
   bot_user:
-    display_name: STEM+C Onboarding
+    # This becomes the bot's @-handle: lowercase, no spaces, periods, or "+".
+    display_name: stemplusc-onboarding
     always_online: false
 
 oauth_config:
