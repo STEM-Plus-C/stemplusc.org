@@ -153,6 +153,53 @@ function normalizePhone(raw) {
  * Accepts the whole `ContactRosterModel`, a bare `TeamStudents` array, or the
  * wizard model that wraps it.
  */
+/**
+ * Pull the roster JSON out of a saved FIRST Team Roster page.
+ *
+ * The console snippet is fragile: the roster renders inside an iframe, so the
+ * variable is not in the console's default scope, and browsers increasingly
+ * warn about pasting into the console at all. Saving the page (File → Save
+ * Page As) sidesteps both — the data is a plain `var ContactRosterModel = {…}`
+ * assignment in the HTML.
+ *
+ * Brace-counted rather than regexed to the first `};`, because the JSON
+ * contains strings that can hold braces and semicolons.
+ */
+function extractRosterFromHtml(html) {
+  const marker = /var\s+ContactRosterModel\s*=\s*/;
+  const m = marker.exec(html);
+  if (!m) return null;
+
+  let i = html.indexOf('{', m.index + m[0].length - 1);
+  if (i < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let j = i; j < html.length; j++) {
+    const c = html[j];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(html.slice(i, j + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function recordsFromFirstJson(data) {
   const model = data?.ContactRoster ?? data;
   const students = Array.isArray(model) ? model : model?.TeamStudents;
@@ -265,7 +312,18 @@ const raw = readFileSync(resolve(input), 'utf8');
 let records;
 let source;
 const trimmed = raw.trimStart();
-if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+if (trimmed.startsWith('<') || /var\s+ContactRosterModel/.test(raw)) {
+  const model = extractRosterFromHtml(raw);
+  if (!model) {
+    console.error(
+      '\nThat looks like a saved page, but no roster was found in it.\n' +
+        'Make sure you saved the Team Roster tab itself, with the roster visible.\n'
+    );
+    process.exit(1);
+  }
+  records = recordsFromFirstJson(model);
+  source = 'FIRST Team Roster page (saved HTML)';
+} else if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
   let parsed;
   try {
     parsed = JSON.parse(raw);

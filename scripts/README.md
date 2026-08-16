@@ -327,39 +327,66 @@ would otherwise repeat every time you touch a field.
 and *Printable Roster* — and that last one is a print view, not a data export.
 
 It does not need one. The page carries the entire roster as JSON in a variable
-called `ContactRosterModel`, and that object holds exactly what contact cards
-need: student name, email and phone, parent/guardian name, email and phone,
-application status, and Consent & Release status.
+called `ContactRosterModel`, holding exactly what we need: student name, email
+and phone, parent/guardian name, email and phone, application status, and
+Consent & Release status.
 
-To save it:
+### Save the page (recommended)
 
-1. Open **Team Contacts → Team Roster** in the FIRST Dashboard.
-2. Open your browser's developer console (⌥⌘I on macOS, then the Console tab).
-3. Paste this and press enter — it downloads the roster to your Downloads
-   folder:
+1. Open **Team Contacts → Team Roster** in the FIRST Dashboard and wait for the
+   roster to appear.
+2. **File → Save Page As…**, into your Downloads folder.
+   - **Safari**: set Format to **Page Source** (not Web Archive).
+   - **Chrome**: choose **Webpage, HTML Only**.
+3. Point the scripts at the saved `.html` file. They find the roster inside it.
 
-   ```js
-   const blob = new Blob([JSON.stringify(ContactRosterModel, null, 2)], { type: 'application/json' });
-   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'first-roster.json' });
-   a.click();
-   ```
+```bash
+node scripts/onboard.mjs ~/Downloads/TeamRoster.html --seed --commit
+node scripts/vcards.mjs  ~/Downloads/TeamRoster.html
+```
 
-4. Run `vcards.mjs` against the downloaded file. It detects the format
-   automatically.
+That is it. No console, no pasted code.
 
-This is your own data in your own browser session — no API key, no third-party
-service, nothing leaving your machine. Delete the file when you are done.
+### Why not the browser console
+
+The obvious approach — paste a snippet into the console and download the
+variable — fails in practice. The roster renders inside an **iframe**, so
+`ContactRosterModel` is not in the console's default scope and you get
+`ReferenceError: Can't find variable`. Browsers also increasingly warn about
+pasting into the console at all, for good reason.
+
+If you would rather use the console anyway, this version searches the frames
+and can be run more than once without a duplicate-variable error:
+
+```js
+(() => {
+  const grab = (w) => { try { return w.ContactRosterModel; } catch { return null; } };
+  let model = grab(window);
+  if (!model) for (const f of window.frames) { model = grab(f); if (model) break; }
+  if (!model) return console.error('Roster not found — open the Team Roster tab first.');
+  const blob = new Blob([JSON.stringify(model, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'first-roster.json';
+  a.click();
+})();
+```
+
+Both scripts accept either input — a saved `.html` page or a `.json` file —
+detected from the contents, so it does not matter which route you take.
 
 **What FIRST gives you, and what it does not.** Student and parent names and
-emails are reliable. **Phone numbers are frequently missing** — students often
-have none on file, and parent phone is regularly blank. FIRST also collects no
-second guardian, no grade, and no medical or emergency information. That gap is
-the reason the Jotform step exists; it is not redundant with FIRST.
+emails are reliable. **Phone numbers are frequently missing.** FIRST also
+collects no second guardian, no grade, and no medical or emergency information.
+That gap is the reason the Jotform step exists; it is not redundant with FIRST.
 
 Every run prints a **needs-attention list**: students whose application is not
 Accepted, students whose FIRST Consent & Release is not on record, and students
 with no reachable guardian. Those are the gaps that cost a student a season, so
 they print every time rather than hiding behind a flag.
+
+**Delete the saved page when you are done** — it holds minors' names, emails,
+and phone numbers.
 
 ## Generating contact cards
 
