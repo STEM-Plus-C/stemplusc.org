@@ -628,6 +628,20 @@ for (const s of accepted) {
   }
 }
 
+// Students on the roster who are not accepted never enter the loop above, so
+// without this they vanish from the report entirely — and someone who applied
+// and is waiting on you is exactly who should not go unmentioned.
+for (const s of students) {
+  if (s.ApplicationStatus === 'Accepted') continue;
+  const who = `${s.name_first} ${s.name_last}`.trim() || '(no name)';
+  const status = s.ApplicationStatus || 'no status';
+  worklist.push(
+    status === 'Applied'
+      ? `${who}: applied and waiting — accept or decline them in the FIRST Dashboard`
+      : `${who}: on the roster but ${status} — not onboarded`
+  );
+}
+
 if (commit) saveState(state);
 
 // -------------------------------------------------------------- report
