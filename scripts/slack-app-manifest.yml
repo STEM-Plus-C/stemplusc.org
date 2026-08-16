@@ -1,0 +1,48 @@
+# Slack app manifest for the onboarding bot.
+#
+# Create the app from this rather than clicking through the scope list:
+#   api.slack.com/apps → Create New App → From an app manifest
+#   → pick the workspace → paste this → Create → Install to Workspace
+#
+# Then copy the Bot User OAuth Token (starts xoxb-) into SLACK_BOT_TOKEN in
+# your .env, and invite the bot into each channel it needs to work in:
+#
+#   /invite @STEM+C Onboarding
+#
+# in #parents, #all-tie-dye-samurai, #jedi-parents, and #tie-dye-jedi-general.
+# conversations.invite requires the caller to be a member of the channel, so
+# the bot cannot add anyone to a channel it is not in itself.
+#
+# Scopes are deliberately minimal. This bot reads people and adds them to
+# channels; it cannot read messages, post, or see file contents.
+
+display_information:
+  name: STEM+C Onboarding
+  description: Adds registered families to their team channels once paperwork is signed.
+  background_color: "#081f3f"
+
+features:
+  bot_user:
+    display_name: STEM+C Onboarding
+    always_online: false
+
+oauth_config:
+  scopes:
+    bot:
+      # Resolve a family's email address to a Slack user.
+      - users:read
+      - users:read.email
+      # Find the channels by name, and verify the bot can see them.
+      - channels:read
+      # Add members to public channels.
+      - channels:manage
+      # The same, for private channels — drop both if all four are public.
+      - groups:read
+      - groups:write
+
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+  # No event subscriptions or interactivity: the bot is only ever called
+  # outbound by onboard.mjs. It has no endpoint and listens for nothing.
