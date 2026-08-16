@@ -94,10 +94,15 @@ const SEASON = '27';
  */
 const FIELDS = {
   participantId: 'participant_id',
+  team: 'team',
   studentFirst: 'student_first',
   studentLast: 'student_last',
+  studentEmail: 'student_email',
+  studentPhone: 'student_phone',
+  parentFirst: 'parent1_first',
+  parentLast: 'parent1_last',
   parentEmail: 'parent1_email',
-  team: 'team',
+  parentPhone: 'parent1_phone',
 };
 
 const SLACK = 'https://slack.com/api';
@@ -271,16 +276,51 @@ function indexByParticipant(submissions) {
 }
 
 /** Prefilled form URL. The participant id is what makes matching reliable. */
+/**
+ * Phone numbers arrive from FIRST as whatever the family typed — bare digits,
+ * or malformed separators like "801389-4191". Normalizing before prefilling
+ * keeps a phone field from rejecting its own prefilled value. Mirrors the same
+ * helper in vcards.mjs.
+ */
+function normalizePhone(raw) {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits[0] === '1') {
+    return `${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return String(raw).trim();
+}
+
+/**
+ * Prefill everything FIRST already knows, so a family only fills what it
+ * genuinely cannot tell us: grade, relationship, a second guardian, medical
+ * notes, the media choice, and the signatures.
+ *
+ * Empty values are omitted rather than sent blank — FIRST leaves phone fields
+ * empty often, and an empty parameter is noise in a URL a parent may look at.
+ * Nothing here is read-only except the participant id, so a family can correct
+ * anything FIRST had wrong.
+ */
 function packetLink({ formId, participantId, student, guardian, team }) {
-  const params = new URLSearchParams({
-    [FIELDS.participantId]: participantId,
-    [FIELDS.studentFirst]: student.legalFirst,
-    [FIELDS.studentLast]: student.last,
-    [FIELDS.parentEmail]: guardian.email,
-    // The team dropdown has exactly one option per form, so making a family
-    // pick it is a required click with no decision in it.
-    [FIELDS.team]: TEAMS[team].label,
-  });
+  const params = new URLSearchParams();
+  const set = (field, value) => {
+    if (value) params.set(field, value);
+  };
+
+  set(FIELDS.participantId, participantId);
+  // The team dropdown has exactly one option per form, so making a family pick
+  // it is a required click with no decision in it.
+  set(FIELDS.team, TEAMS[team].label);
+  set(FIELDS.studentFirst, student.legalFirst);
+  set(FIELDS.studentLast, student.last);
+  set(FIELDS.studentEmail, student.email);
+  set(FIELDS.studentPhone, normalizePhone(student.phone));
+  set(FIELDS.parentFirst, guardian.legalFirst);
+  set(FIELDS.parentLast, guardian.last);
+  set(FIELDS.parentEmail, guardian.email);
+  set(FIELDS.parentPhone, normalizePhone(guardian.phone));
+
   return `https://form.jotform.com/${formId}?${params}`;
 }
 
@@ -416,11 +456,13 @@ const people = (s) => ({
     legalFirst: s.name_first || '',
     last: s.name_last || '',
     email: s.email || '',
+    phone: s.phone || '',
   },
   guardian: {
     legalFirst: s.parent_name_first || '',
     last: s.parent_name_last || '',
     email: s.parent_email || '',
+    phone: s.parent_phone || '',
   },
 });
 
