@@ -7,7 +7,7 @@
  *   1. **FIRST Dashboard JSON** — the `ContactRosterModel` object embedded in
  *      the Team Roster page. FIRST offers no CSV export ("Printable Roster" is
  *      a print view), but the page carries the whole roster as JSON. See
- *      scripts/README.md for the one-line console snippet that saves it.
+ *      scripts/onboarding/README.md for the one-line console snippet that saves it.
  *   2. **Jotform CSV** — the submissions export, which adds the phone numbers,
  *      second guardians, and emergency information FIRST does not collect.
  *
@@ -17,14 +17,14 @@
  * which is public on GitHub, where a single committed export would be permanent.
  *
  * Usage:
- *   node scripts/vcards.mjs <roster.json|export.csv> [--out <dir>] [--team "Tie Dye Jedi"]
- *   node scripts/vcards.mjs <file> --single      # one combined .vcf
- *   node scripts/vcards.mjs <file> --dry-run     # report, write nothing
+ *   node scripts/onboarding/vcards.mjs <roster.json|export.csv> [--out <dir>] [--team "Tie Dye Jedi"]
+ *   node scripts/onboarding/vcards.mjs <file> --single      # one combined .vcf
+ *   node scripts/onboarding/vcards.mjs <file> --dry-run     # report, write nothing
  *
  * Output defaults to ~/STEMC-vcards/<timestamp>/ — outside any git working
  * tree. The script refuses to read from or write into this repository.
  *
- * Expected CSV columns (Jotform field unique names — see scripts/README.md):
+ * Expected CSV columns (Jotform field unique names — see scripts/onboarding/README.md):
  *   student_first, student_last, student_grade, student_email, student_phone,
  *   parent1_first, parent1_last, parent1_email, parent1_phone, parent1_relationship,
  *   parent2_* (same shape, optional), team
@@ -293,7 +293,7 @@ const value = (name, fallback) => {
 
 const input = argv.find((a) => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--out' && argv[argv.indexOf(a) - 1] !== '--team');
 if (!input) {
-  console.error('Usage: node scripts/vcards.mjs <export.csv> [--out <dir>] [--team <name>] [--single] [--dry-run]');
+  console.error('Usage: node scripts/onboarding/vcards.mjs <export.csv> [--out <dir>] [--team <name>] [--single] [--dry-run]');
   process.exit(1);
 }
 
@@ -335,7 +335,7 @@ if (trimmed.startsWith('<') || /var\s+ContactRosterModel/.test(raw)) {
   if (!records) {
     console.error(
       '\nJSON parsed, but no roster found. Expected a ContactRosterModel object\n' +
-        'with a TeamStudents array (see scripts/README.md).\n'
+        'with a TeamStudents array (see scripts/onboarding/README.md).\n'
     );
     process.exit(1);
   }

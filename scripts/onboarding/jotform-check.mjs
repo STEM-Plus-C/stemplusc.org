@@ -13,8 +13,8 @@
  * the wrong control type. It changes nothing.
  *
  * Usage:
- *   node scripts/jotform-check.mjs                 # both forms, from env
- *   node scripts/jotform-check.mjs <formId>        # one specific form
+ *   node scripts/onboarding/jotform-check.mjs                 # both forms, from env
+ *   node scripts/onboarding/jotform-check.mjs <formId>        # one specific form
  *
  * Environment:
  *   JOTFORM_API_KEY, JOTFORM_FORM_SAMURAI, JOTFORM_FORM_JEDI
@@ -195,7 +195,7 @@ const targets = explicit
 if (!targets.length) {
   console.error(
     '\nNo form to check. Set JOTFORM_FORM_SAMURAI / JOTFORM_FORM_JEDI,\n' +
-      'or pass a form id: node scripts/jotform-check.mjs 250123456789\n'
+      'or pass a form id: node scripts/onboarding/jotform-check.mjs 250123456789\n'
   );
   process.exit(1);
 }

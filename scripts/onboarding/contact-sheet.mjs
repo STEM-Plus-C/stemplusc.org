@@ -13,9 +13,9 @@
  * JSON, or a Jotform CSV export — detected from the contents.
  *
  * Usage:
- *   node scripts/contact-sheet.mjs <roster.json|page.html|export.csv>
- *   node scripts/contact-sheet.mjs <file> --open      # open when written
- *   node scripts/contact-sheet.mjs <file> --out <path>
+ *   node scripts/onboarding/contact-sheet.mjs <roster.json|page.html|export.csv>
+ *   node scripts/onboarding/contact-sheet.mjs <file> --open      # open when written
+ *   node scripts/onboarding/contact-sheet.mjs <file> --out <path>
  *
  * Output defaults to ~/STEMC-contact-sheets/<timestamp>.html — outside any git
  * working tree. The script refuses to read from or write into this repository.
@@ -269,7 +269,7 @@ const val = (f, d) => {
 const input = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--out');
 
 if (!input) {
-  console.error('Usage: node scripts/contact-sheet.mjs <roster.json|page.html|export.csv> [--out <path>] [--open]');
+  console.error('Usage: node scripts/onboarding/contact-sheet.mjs <roster.json|page.html|export.csv> [--out <path>] [--open]');
   process.exit(1);
 }
 assertOutsideRepo(input, 'read participant data from');
@@ -280,7 +280,7 @@ assertOutsideRepo(out, 'write a contact sheet');
 
 const loaded = loadPeople(input);
 if (!loaded?.rows) {
-  console.error('\nCould not find a roster in that file. See scripts/README.md.\n');
+  console.error('\nCould not find a roster in that file. See scripts/onboarding/README.md.\n');
   process.exit(1);
 }
 

@@ -7,64 +7,115 @@ and the scripts that carry the data between the systems involved.
 
 ## Start here
 
-### One-time setup
-
-| | |
-|---|---|
-| ✅ | Both Jotform forms built and verified (`jotform-check.mjs`) |
-| ✅ | Policy documents published at stemplusc.org/policies, with PDFs |
-| ✅ | Roster bookmarklet installed |
-| ✅ | `.env` holding the Jotform key and both form ids |
-| ☐ | **Slack bot installed and invited to all four channels** |
-| ☐ | **tiedyesamurai.org and tiedyejedi.org deployed** |
-
-The Slack bot has to be a *member* of `#parents`, `#all-tie-dye-samurai`,
-`#jedi-parents`, and `#tie-dye-jedi-general` — `conversations.invite` fails
-otherwise. Add it with `/invite @yourbot` in each.
-
-### When a student is approved
+Everything lives in `scripts/onboarding/`. Run from the repo root, with the
+environment loaded:
 
 ```bash
 cd /Volumes/Development/stemplusc.org
 set -a; source .env; set +a
 ```
 
-1. **Accept them in the FIRST Dashboard.**
-2. **Get the roster** — open Team Contacts → Team Roster, wait for it to load,
-   click the **Get Roster** bookmark.
-3. **Assign participant ids:**
-   ```bash
-   node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json --seed --commit
-   ```
-4. **Get their packet link:**
-   ```bash
-   node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json
-   ```
-   Send the printed link. It arrives prefilled with everything FIRST knows.
-5. **After they submit**, re-run the same command with `--commit`. The script
-   sees the submission, records it as signed, and adds the family to Slack.
-   Anyone not yet in the workspace lands on the worklist — invite them, run it
-   again.
-6. **Contact cards**, whenever you want them:
-   ```bash
-   node scripts/vcards.mjs ~/Downloads/first-roster-frc-10933.json
-   ```
+### The workflow
 
-Steps 3–5 are safe to re-run at any time; every run advances whoever can
-advance and reports whoever is stuck.
+```
+FIRST: parent applies  →  you accept  →  packet emailed  →  family signs  →  Slack
+```
+
+Each numbered step below is one command. Steps 3–6 are safe to repeat at any
+time: every run advances whoever can advance and reports whoever is stuck.
+
+| # | Step | Command |
+|---|---|---|
+| 1 | Accept the student in the FIRST Dashboard | *(in the browser)* |
+| 2 | Export the roster — open Team Roster, click **Get Roster** | *(bookmarklet)* |
+| 3 | Assign participant ids | `node scripts/onboarding/onboard.mjs <roster> --seed --commit` |
+| 4 | Get the packet emails | `node scripts/onboarding/onboard.mjs <roster> --email` |
+| 5 | Send them *(paste into Outlook)* | — |
+| 6 | After families submit: record + add to Slack | `node scripts/onboarding/onboard.mjs <roster> --commit` |
+
+Run step 6 periodically even when nobody is pending — it surfaces new FIRST
+applications waiting on a decision, which is how you find out someone applied.
+
+### One-time setup
+
+| | |
+|---|---|
+| ✅ | Both Jotform forms built and verified |
+| ✅ | Policy documents published at stemplusc.org/policies, with PDFs |
+| ✅ | Roster bookmarklet installed |
+| ✅ | `.env` with the Jotform key, both form ids, and the Slack bot token |
+| ✅ | Slack app installed, bot invited to all four channels |
+| ✅ | All three sites deployed |
+
+Verify setup any time:
+
+```bash
+node scripts/onboarding/slack-check.mjs      # token, scopes, channels, membership
+node scripts/onboarding/jotform-check.mjs    # both forms against the field spec
+```
+
+### Every command
+
+**`onboard.mjs`** — the pipeline. Dry run by default; `--commit` is required to
+change anything.
+
+| Flag | Does |
+|---|---|
+| *(none)* | Dry run — shows what would happen, changes nothing |
+| `--commit` | Writes the ledger, records signatures, adds people to Slack, posts the welcome |
+| `--seed` | Create ledger entries and assign participant ids; sends nothing |
+| `--email` | Print a ready-to-send email per accepted student |
+| `--links` | Print just the packet URLs, for a mail merge |
+| `--mark-signed <peopleId>` | Record someone who signed outside Jotform |
+| `--set-email <ID>:<student\|parent>=<addr>` | Correct an address FIRST has wrong |
+| `--state <path>` | Use a different ledger file (testing) |
+
+**`vcards.mjs`** — contact cards for your phone, one `.vcf` per person.
+
+```bash
+node scripts/onboarding/vcards.mjs <roster>            # one file each
+node scripts/onboarding/vcards.mjs <roster> --single   # one combined file
+node scripts/onboarding/vcards.mjs <roster> --dry-run  # report only
+```
+
+**`contact-sheet.mjs`** — a printable page with every student and their
+guardians together. The sheet for a clipboard at a competition, or to have open
+when something happens in the shop.
+
+```bash
+node scripts/onboarding/contact-sheet.mjs <roster> --open
+```
+
+Flags gaps in orange: students with no contact, and any with no reachable
+guardian.
+
+**`jotform-check.mjs`** / **`slack-check.mjs`** — read-only preflights. Run
+after changing a form, a channel, or the Slack app.
+
+### When FIRST has something wrong
+
+FIRST is the source of truth right up until it is not. An address already tied
+to another FIRST account cannot be reused, so families sometimes register under
+whatever worked on the day.
+
+```bash
+node scripts/onboarding/onboard.mjs <roster> --set-email TDS-27-002:student=theiractual@example.com
+```
+
+The override lives in the ledger, wins wherever that email is used, and is
+announced in the output whenever it applies — a corrected address is never
+silently in play.
 
 ### At the start of each season
 
-- `SEASON` in `scripts/onboard.mjs` — the participant id prefix
+- `SEASON` and `SEASON_LABEL` in `onboard.mjs` — the participant id prefix and
+  the wording in the packet email
+- `SIGNATURE` in `onboard.mjs` — if the coach changes
 - `SITE.dues` in each team repo — the four numbers that change
 - `SITE.joinUrl` in each team repo — **FIRST issues new join links each season,
   and a stale one silently drops every family that clicks it**
-- Rebuild the Jotform forms' grade options if the range shifts
+- Rebuild the Jotform grade options if the range shifts
 - `npm run policies:pdf` after any policy edit, then redeploy
-
----
-
----
 
 ## Season runbook
 
@@ -356,7 +407,7 @@ Build one, then use Jotform's **Clone Form** to make the second and change the
 ```bash
 export JOTFORM_API_KEY=…
 export JOTFORM_FORM_SAMURAI=…  JOTFORM_FORM_JEDI=…
-node scripts/jotform-check.mjs
+node scripts/onboarding/jotform-check.mjs
 ```
 
 It reads each form through a read-only endpoint and reports every unique name
@@ -417,8 +468,8 @@ javascript:(()=>{let seen=0,blocked=0;const find=(w,d)=>{seen++;try{if(w.Contact
    mixed up.
 
 ```bash
-node scripts/onboard.mjs ~/Downloads/first-roster-frc-10933.json --seed --commit
-node scripts/vcards.mjs  ~/Downloads/first-roster-frc-10933.json
+node scripts/onboarding/onboard.mjs ~/Downloads/first-roster-frc-10933.json --seed --commit
+node scripts/onboarding/vcards.mjs  ~/Downloads/first-roster-frc-10933.json
 ```
 
 Repeat from step 1 for the other team — its roster saves under its own name.
@@ -475,17 +526,17 @@ are the gaps that cost a student a season, so they print every time.
 2. Run:
 
    ```bash
-   node scripts/vcards.mjs ~/Downloads/first-roster.json
-   node scripts/vcards.mjs ~/Desktop/export.csv
+   node scripts/onboarding/vcards.mjs ~/Downloads/first-roster.json
+   node scripts/onboarding/vcards.mjs ~/Desktop/export.csv
    ```
 
    Output goes to `~/STEMC-vcards/<timestamp>/`, one `.vcf` per person.
 
    ```bash
-   node scripts/vcards.mjs ~/Desktop/export.csv --dry-run   # report only
-   node scripts/vcards.mjs ~/Desktop/export.csv --single    # one combined file
-   node scripts/vcards.mjs ~/Desktop/export.csv --out ~/somewhere
-   node scripts/vcards.mjs ~/Desktop/export.csv --team "Tie Dye Jedi"
+   node scripts/onboarding/vcards.mjs ~/Desktop/export.csv --dry-run   # report only
+   node scripts/onboarding/vcards.mjs ~/Desktop/export.csv --single    # one combined file
+   node scripts/onboarding/vcards.mjs ~/Desktop/export.csv --out ~/somewhere
+   node scripts/onboarding/vcards.mjs ~/Desktop/export.csv --team "Tie Dye Jedi"
    ```
 
 3. Import the `.vcf` files into Contacts.
@@ -522,10 +573,10 @@ burn. Prefill-by-query-string is documented and stable; the Sign send API shape
 is not something this script guesses at.
 
 ```bash
-node scripts/onboard.mjs ~/Downloads/first-roster.json            # dry run
-node scripts/onboard.mjs ~/Downloads/first-roster.json --seed     # ledger only
-node scripts/onboard.mjs ~/Downloads/first-roster.json --commit   # act
-node scripts/onboard.mjs ~/Downloads/first-roster.json --mark-signed 6489569
+node scripts/onboarding/onboard.mjs ~/Downloads/first-roster.json            # dry run
+node scripts/onboarding/onboard.mjs ~/Downloads/first-roster.json --seed     # ledger only
+node scripts/onboarding/onboard.mjs ~/Downloads/first-roster.json --commit   # act
+node scripts/onboarding/onboard.mjs ~/Downloads/first-roster.json --mark-signed 6489569
 ```
 
 ### Two passes, because Slack requires it

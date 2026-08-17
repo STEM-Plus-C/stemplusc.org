@@ -11,7 +11,7 @@
  * Reads only. It never invites anyone or changes anything.
  *
  * Usage:
- *   node scripts/slack-check.mjs
+ *   node scripts/onboarding/slack-check.mjs
  *
  * Environment:
  *   SLACK_BOT_TOKEN   xoxb-… from the app's OAuth & Permissions page

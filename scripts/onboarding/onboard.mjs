@@ -38,12 +38,12 @@
  * --commit to act, and read the dry-run output first.
  *
  * Usage:
- *   node scripts/onboard.mjs <roster.json> [--commit] [--seed]
- *   node scripts/onboard.mjs <roster.json> --links        # print links, do nothing else
- *   node scripts/onboard.mjs <roster.json> --email        # print ready-to-send emails
- *   node scripts/onboard.mjs <roster.json> --mark-signed <peopleId>
- *   node scripts/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
- *   node scripts/onboard.mjs <roster.json> --state <path>
+ *   node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed]
+ *   node scripts/onboarding/onboard.mjs <roster.json> --links        # print links, do nothing else
+ *   node scripts/onboarding/onboard.mjs <roster.json> --email        # print ready-to-send emails
+ *   node scripts/onboarding/onboard.mjs <roster.json> --mark-signed <peopleId>
+ *   node scripts/onboarding/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
+ *   node scripts/onboarding/onboard.mjs <roster.json> --state <path>
  *
  * Environment (never commit these — this repository is public):
  *   SLACK_BOT_TOKEN          xoxb-… with users:read, users:read.email,
@@ -123,7 +123,7 @@ const POLICIES = {
  *
  * Deliberately the same snake_case names `vcards.mjs` expects from a CSV
  * export, so one set of field names serves both the API path and the
- * export-a-spreadsheet path. See scripts/README.md for the full field list.
+ * export-a-spreadsheet path. See scripts/onboarding/README.md for the full field list.
  */
 const FIELDS = {
   participantId: 'participant_id',
@@ -162,7 +162,7 @@ const rosterPath = argv.find(
 
 if (!rosterPath) {
   console.error(
-    'Usage: node scripts/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]'
+    'Usage: node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]'
   );
   process.exit(1);
 }
