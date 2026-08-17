@@ -42,6 +42,7 @@
  *   node scripts/onboard.mjs <roster.json> --links        # print links, do nothing else
  *   node scripts/onboard.mjs <roster.json> --email        # print ready-to-send emails
  *   node scripts/onboard.mjs <roster.json> --mark-signed <peopleId>
+ *   node scripts/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
  *   node scripts/onboard.mjs <roster.json> --state <path>
  *
  * Environment (never commit these — this repository is public):
@@ -154,6 +155,7 @@ const seedOnly = has('seed');
 const linksOnly = has('links');
 const emailOnly = has('email');
 const markSigned = val('mark-signed', null);
+const setEmail = val('set-email', null);
 const rosterPath = argv.find(
   (a, i) => !a.startsWith('--') && !['--state', '--mark-signed'].includes(argv[i - 1])
 );
@@ -572,6 +574,36 @@ if (markSigned) {
   process.exit(0);
 }
 
+/**
+ * Correct an email locally, without touching FIRST.
+ *
+ * FIRST's copy is sometimes wrong and sometimes uncorrectable — an address
+ * already tied to another FIRST account cannot simply be reused, so a family
+ * registers under whatever worked that day. Re-reading the roster each run
+ * would otherwise mean looking up a known-wrong address forever.
+ *
+ *   --set-email TDS-27-002:student=zackran99@gmail.com
+ */
+if (setEmail) {
+  const m = /^([A-Za-z]+-\d+-\d+):(student|parent)=(.+)$/.exec(setEmail.trim());
+  if (!m) {
+    console.error('\nExpected --set-email TDS-27-002:student=someone@example.com\n');
+    process.exit(1);
+  }
+  const [, pid, role, addr] = m;
+  const hit = Object.entries(state.participants).find(([, v]) => v.participantId === pid.toUpperCase());
+  if (!hit) {
+    console.error(`\nNo ledger entry for ${pid}. Run --seed --commit first.\n`);
+    process.exit(1);
+  }
+  const [, entry] = hit;
+  entry.emails = { ...(entry.emails ?? {}), [role]: addr };
+  saveState(state);
+  console.log(`${pid}: ${role} email overridden to ${addr}`);
+  console.log('FIRST still has its own value; this only affects what we use.');
+  process.exit(0);
+}
+
 const { team, students } = loadRoster(rosterPath);
 const cfg = TEAMS[team];
 const accepted = students.filter((s) => s.ApplicationStatus === 'Accepted');
@@ -609,23 +641,29 @@ if (seedOnly) {
 
 const formId = process.env[cfg.formEnv];
 
-// Person shape, shared by the link builder and the Slack step.
-const people = (s) => ({
-  student: {
-    first: s.nickname_first || s.name_first || '',
-    // Legal name on the signature line; the preferred name is for contact cards.
-    legalFirst: s.name_first || '',
-    last: s.name_last || '',
-    email: s.email || '',
-    phone: s.phone || '',
-  },
-  guardian: {
-    legalFirst: s.parent_name_first || '',
-    last: s.parent_name_last || '',
-    email: s.parent_email || '',
-    phone: s.parent_phone || '',
-  },
-});
+// Person shape, shared by the link builder and the Slack step. A ledger
+// override wins over FIRST — see --set-email.
+const people = (s) => {
+  const o = state.participants[String(s.PeopleID)]?.emails ?? {};
+  return {
+    student: {
+      first: s.nickname_first || s.name_first || '',
+      // Legal name on the signature line; the preferred name is for contact cards.
+      legalFirst: s.name_first || '',
+      last: s.name_last || '',
+      email: o.student || s.email || '',
+      emailOverridden: Boolean(o.student && o.student !== s.email),
+      phone: s.phone || '',
+    },
+    guardian: {
+      legalFirst: s.parent_name_first || '',
+      last: s.parent_name_last || '',
+      email: o.parent || s.parent_email || '',
+      emailOverridden: Boolean(o.parent && o.parent !== s.parent_email),
+      phone: s.parent_phone || '',
+    },
+  };
+};
 
 // --email: print a ready-to-send email per student and stop.
 if (emailOnly) {
@@ -758,6 +796,9 @@ for (const s of accepted) {
     if (!commit) {
       actions.push(`${tag}: would add ${role} (${person.email}) to #${channelName}`);
       continue;
+    }
+    if (person.emailOverridden) {
+      actions.push(`${tag}: using corrected ${role} email ${person.email} (FIRST has a different one)`);
     }
     const userId = await findSlackUser(person.email);
     if (!userId) {
