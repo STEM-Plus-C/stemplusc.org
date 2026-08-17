@@ -43,6 +43,8 @@
  *   node scripts/onboarding/onboard.mjs <roster.json> --email        # print ready-to-send emails
  *   node scripts/onboarding/onboard.mjs <roster.json> --mark-signed <peopleId>
  *   node scripts/onboarding/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
+ *   node scripts/onboarding/onboard.mjs <roster.json> --set-start TDS-27-004=2026-10-01
+ *   node scripts/onboarding/onboard.mjs <roster.json> --dues
  *   node scripts/onboarding/onboard.mjs <roster.json> --state <path>
  *
  * Environment (never commit these — this repository is public):
@@ -73,6 +75,19 @@ const TEAMS = {
     formEnv: 'JOTFORM_FORM_SAMURAI',
     program: 'FIRST Robotics Competition',
     welcomeUrl: 'https://tiedyesamurai.org/welcome',
+    /**
+     * Ten payments on the 1st, July through April, or the season in full.
+     * A student joining mid-season owes the payments from their start month
+     * onward — same monthly amount, fewer months, not the full total spread
+     * thinner.
+     */
+    dues: {
+      monthly: 215,
+      inFull: 2150,
+      firstPayment: '2026-07-01',
+      lastPayment: '2027-04-01',
+      portalUrl: 'https://www.zeffy.com/en-US/ticketing/tie-dye-samurai-season-fees',
+    },
   },
   jedi: {
     label: 'Tie Dye Jedi',
@@ -82,6 +97,9 @@ const TEAMS = {
     formEnv: 'JOTFORM_FORM_JEDI',
     program: 'FIRST Tech Challenge',
     welcomeUrl: 'https://tiedyejedi.org/welcome',
+    // FTC dues are not set for this season. Fill in the same shape as Samurai
+    // when they are; the dues report skips the team while this is null.
+    dues: null,
   },
 };
 
@@ -156,6 +174,8 @@ const linksOnly = has('links');
 const emailOnly = has('email');
 const markSigned = val('mark-signed', null);
 const setEmail = val('set-email', null);
+const setStart = val('set-start', null);
+const duesOnly = has('dues');
 const rosterPath = argv.find(
   (a, i) => !a.startsWith('--') && !['--state', '--mark-signed'].includes(argv[i - 1])
 );
@@ -470,6 +490,51 @@ ${SIGNATURE}`;
   return { subject, body, to: guardian.email, participantId };
 }
 
+// ---------------------------------------------------------------- dues
+
+/**
+ * The payment dates for a season: the 1st of each month from the first
+ * payment through the last, inclusive.
+ */
+function paymentDates(dues) {
+  const out = [];
+  const [fy, fm] = dues.firstPayment.split('-').map(Number);
+  const [ly, lm] = dues.lastPayment.split('-').map(Number);
+  let y = fy;
+  let m = fm;
+  for (let guard = 0; guard < 36; guard++) {
+    out.push(`${y}-${String(m).padStart(2, '0')}-01`);
+    if (y === ly && m === lm) break;
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+/**
+ * What a student owes, given when they started.
+ *
+ * A family joining in October is charged from October, not from July — same
+ * monthly amount, fewer payments. Anyone starting on or before the first
+ * payment owes the full season.
+ */
+function duesFor(startDate, dues) {
+  const all = paymentDates(dues);
+  const start = String(startDate ?? '').slice(0, 7); // YYYY-MM
+  const owed = start ? all.filter((d) => d.slice(0, 7) >= start) : all;
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    payments: owed.length,
+    total: owed.length * dues.monthly,
+    fullSeason: owed.length === all.length,
+    due: owed.filter((d) => d <= today),          // already fallen due
+    next: owed.find((d) => d > today) ?? null,    // next one coming
+    schedule: owed,
+  };
+}
+
+const money = (n) => `$${n.toLocaleString('en-US')}`;
+
 // --------------------------------------------------------------- slack
 
 async function slack(method, params = {}, post = false) {
@@ -604,6 +669,34 @@ if (setEmail) {
   process.exit(0);
 }
 
+/**
+ * Record when a student started, which is what their dues are prorated from.
+ *
+ * No system knows this reliably. FIRST does not expose an acceptance date, the
+ * Jotform submission is often weeks after a student started attending, and the
+ * ledger only knows when this script first noticed them. So it is set by hand,
+ * defaulting to the season start for anyone who was here from the beginning.
+ *
+ *   --set-start TDS-27-004=2026-10-01
+ */
+if (setStart) {
+  const m = /^([A-Za-z]+-\d+-\d+)=(\d{4}-\d{2}-\d{2})$/.exec(setStart.trim());
+  if (!m) {
+    console.error('\nExpected --set-start TDS-27-004=2026-10-01\n');
+    process.exit(1);
+  }
+  const [, pid, date] = m;
+  const hit = Object.entries(state.participants).find(([, v]) => v.participantId === pid.toUpperCase());
+  if (!hit) {
+    console.error(`\nNo ledger entry for ${pid}. Run --seed --commit first.\n`);
+    process.exit(1);
+  }
+  hit[1].startDate = date;
+  saveState(state);
+  console.log(`${pid}: start date set to ${date}`);
+  process.exit(0);
+}
+
 const { team, students } = loadRoster(rosterPath);
 const cfg = TEAMS[team];
 const accepted = students.filter((s) => s.ApplicationStatus === 'Accepted');
@@ -664,6 +757,53 @@ const people = (s) => {
     },
   };
 };
+
+// --dues: what each family owes, given when they started.
+if (duesOnly) {
+  const dues = cfg.dues;
+  if (!dues) {
+    console.error(`\nNo dues configured for ${cfg.label}. Set TEAMS.${team}.dues in this script.\n`);
+    process.exit(1);
+  }
+  const all = paymentDates(dues);
+  console.log(
+    `\n${cfg.label} — ${all.length} payments of ${money(dues.monthly)}, ` +
+      `${all[0]} to ${all[all.length - 1]}, or ${money(dues.inFull)} in full\n`
+  );
+  const unset = [];
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    const who = `${s.name_first} ${s.name_last}`.trim();
+    const start = entry.startDate ?? null;
+    const d = duesFor(start ?? dues.firstPayment, dues);
+    if (!start) unset.push(entry.participantId);
+    console.log(
+      `  ${entry.participantId}  ${who.padEnd(22)}` +
+        `start ${(start ?? dues.firstPayment + ' (assumed)').padEnd(22)}` +
+        `${String(d.payments).padStart(2)} payments  ${money(d.total).padStart(7)}`
+    );
+    console.log(
+      `${' '.repeat(14)}${String(d.due.length).padStart(2)} due so far (${money(d.due.length * dues.monthly)})` +
+        `${d.next ? `, next ${d.next}` : ', season fully invoiced'}`
+    );
+  }
+  if (unset.length) {
+    console.log(
+      `\n${unset.length} student(s) have no start date and are assumed to have ` +
+        `started at the season opening.\nIf that is wrong, set it:\n` +
+        `  node scripts/onboarding/onboard.mjs <roster> --set-start ${unset[0]}=2026-10-01`
+    );
+  }
+  console.log(
+    `\nThis answers "what does this student owe", nothing more.\n\n` +
+      `The Dues Status sheet in FRC Budget 2026-2027.xlsx is the authority on\n` +
+      `dues: it tracks paid, owed, months behind, and reminders, fed by\n` +
+      `tools/zeffy_import.py and the Zeffy Map for buyer attribution. Use it,\n` +
+      `not this, to find who is behind. This is for the narrower question of\n` +
+      `what to charge someone joining mid-season.\n`
+  );
+  process.exit(0);
+}
 
 // --email: print a ready-to-send email per student and stop.
 if (emailOnly) {
