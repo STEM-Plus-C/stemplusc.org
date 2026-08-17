@@ -98,6 +98,15 @@ const SIGNATURE = [
   'steven@stemplusc.org',
 ].join('\n');
 
+/**
+ * Post a one-line welcome in the student channel when a family completes their
+ * packet. Set false to stop announcing without touching anything else.
+ *
+ * Announced once per student, tracked in the ledger — re-running the script
+ * must not re-welcome anyone.
+ */
+const ANNOUNCE = true;
+
 /** Where the policy documents live. Linked from the email and the form. */
 const POLICIES = {
   teamAgreement: 'https://stemplusc.org/policies/team-agreement',
@@ -519,6 +528,23 @@ async function findSlackUser(email) {
   }
 }
 
+/**
+ * Announce a completed registration in the student channel.
+ *
+ * Uses the student's preferred name rather than their legal one — the
+ * signature line needs the legal name, a welcome does not.
+ */
+async function announce(channelId, name, teamLabel) {
+  await slack(
+    'chat.postMessage',
+    {
+      channel: channelId,
+      text: `🎉 Welcome to ${teamLabel}, ${name} — paperwork's all done and you're officially on the ${SEASON_LABEL} roster.`,
+    },
+    true
+  );
+}
+
 async function inviteToChannel(channelId, userId) {
   try {
     await slack('conversations.invite', { channel: channelId, users: userId }, true);
@@ -741,6 +767,21 @@ for (const s of accepted) {
     const outcome = await inviteToChannel(channels.get(channelName), userId);
     entry.slack[role] = new Date().toISOString();
     actions.push(`${tag}: ${role} ${outcome} #${channelName}`);
+  }
+
+  // ── 4. Tell the team ─────────────────────────────────────────────────
+  //
+  // Only once the student is actually reachable in the channel — announcing
+  // someone who cannot see the message is just noise for everyone else.
+  if (ANNOUNCE && entry.signedAt && entry.slack.student && !entry.slack.announced) {
+    const who = student.first || student.legalFirst;
+    if (!commit) {
+      actions.push(`${tag}: would welcome ${who} in #${cfg.studentChannel}`);
+    } else {
+      await announce(channels.get(cfg.studentChannel), who, cfg.label);
+      entry.slack.announced = new Date().toISOString();
+      actions.push(`${tag}: welcomed ${who} in #${cfg.studentChannel}`);
+    }
   }
 }
 

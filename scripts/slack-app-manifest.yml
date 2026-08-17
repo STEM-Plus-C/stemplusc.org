@@ -38,6 +38,8 @@ oauth_config:
       - channels:read
       # Add members to public channels.
       - channels:manage
+      # Post the one-line welcome when a family completes their packet.
+      - chat:write
       # The same, for private channels — drop both if all four are public.
       - groups:read
       - groups:write

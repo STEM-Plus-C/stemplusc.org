@@ -27,7 +27,7 @@ const CHANNELS = [
   { name: 'tie-dye-jedi-general', why: 'Tie Dye Jedi students' },
 ];
 
-const NEEDED_SCOPES = ['users:read', 'users:read.email', 'channels:read'];
+const NEEDED_SCOPES = ['users:read', 'users:read.email', 'channels:read', 'chat:write'];
 /** One of these is needed to add anyone to a channel. */
 const INVITE_SCOPES = ['channels:manage', 'groups:write'];
 
