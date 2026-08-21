@@ -18,8 +18,20 @@ interface Props {
   title: string;
   /** Meta description for the page. */
   description: string;
-  /** Human-readable period the document governs. */
+  /**
+   * The date this document took effect, e.g. "August 14, 2026". A specific date
+   * rather than a season: a family needs to know which version of the terms
+   * they agreed to, and "the 2026–2027 season" cannot distinguish two revisions
+   * within the same season.
+   */
   effective: string;
+  /**
+   * The date of the most recent substantive change, if the document has been
+   * revised since it took effect. Changed terms bind from their own date, not
+   * retroactively — anyone who signed the earlier version signed the earlier
+   * terms, so both dates have to be visible.
+   */
+  revised?: string;
   /** Optional banner rendered above the document body. */
   notice?: string;
   /**
@@ -40,6 +52,7 @@ const {
   title,
   description,
   effective,
+  revised,
   notice,
   noticeTitle,
   noticeTone = 'warning',
@@ -81,7 +94,9 @@ const noticeStyles = {
       <p class="text-gray-300 print:text-gray-700">
         A program policy of <strong class="text-white print:text-navy">STEM+C</strong>, a 501(c)(3) nonprofit &middot; EIN 83-3523903
       </p>
-      <p class="text-gray-400 text-sm mt-1 print:text-gray-600">Effective {effective}</p>
+      <p class="text-gray-400 text-sm mt-1 print:text-gray-600">
+        Effective {effective}{revised && <> &middot; Revised {revised}</>}
+      </p>
     </div>
   </section>
 

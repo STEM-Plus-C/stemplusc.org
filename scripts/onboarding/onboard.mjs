@@ -176,13 +176,22 @@ const markSigned = val('mark-signed', null);
 const setEmail = val('set-email', null);
 const setStart = val('set-start', null);
 const duesOnly = has('dues');
-const rosterPath = argv.find(
-  (a, i) => !a.startsWith('--') && !['--state', '--mark-signed'].includes(argv[i - 1])
-);
+const reserve = val('reserve', null);
+const linkId = val('link', null);
 
-if (!rosterPath) {
+// Every flag that takes a value, so its value is not mistaken for the roster
+// path. Miss one here and rosterPath silently becomes that flag's argument.
+const VALUE_FLAGS = ['--state', '--mark-signed', '--set-email', '--set-start', '--reserve', '--link'];
+const rosterPath = argv.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(argv[i - 1]));
+
+// These manage the ledger and never read a roster.
+const ledgerOnly = markSigned || setEmail || setStart || reserve || linkId;
+
+if (!rosterPath && !ledgerOnly) {
   console.error(
-    'Usage: node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]'
+    'Usage: node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]\n' +
+      '       node scripts/onboarding/onboard.mjs --reserve "Alex Rivera" [--team samurai]\n' +
+      '       node scripts/onboarding/onboard.mjs --link TDS-27-009=6801234'
   );
   process.exit(1);
 }
@@ -210,7 +219,8 @@ function assertOutsideRepo(path, what) {
   }
 }
 
-assertOutsideRepo(rosterPath, 'read roster data from');
+// Ledger-only commands take no roster; there is nothing to check.
+if (rosterPath) assertOutsideRepo(rosterPath, 'read roster data from');
 
 const statePath = resolve(val('state', join(homedir(), 'STEMC-onboarding', 'state.json')));
 assertOutsideRepo(statePath, 'store onboarding state');
@@ -647,7 +657,7 @@ if (markSigned) {
  * registers under whatever worked that day. Re-reading the roster each run
  * would otherwise mean looking up a known-wrong address forever.
  *
- *   --set-email TDS-27-002:student=zackran99@gmail.com
+ *   --set-email TDS-27-002:student=theiractual@example.com
  */
 if (setEmail) {
   const m = /^([A-Za-z]+-\d+-\d+):(student|parent)=(.+)$/.exec(setEmail.trim());
@@ -694,6 +704,110 @@ if (setStart) {
   hit[1].startDate = date;
   saveState(state);
   console.log(`${pid}: start date set to ${date}`);
+  process.exit(0);
+}
+
+/**
+ * Mint an id for a student who is on the team but not yet registered with FIRST.
+ *
+ * Students turn up before their paperwork does. They start attending, they start
+ * paying, and only later does a parent get through the FIRST registration. The
+ * budget needs to bill them from day one, and billing needs an id.
+ *
+ * The alternative — assigning ids by hand in the spreadsheet — breaks quietly:
+ * this ledger allocates the next id as max+1, so a hand-assigned TDS-27-009
+ * would be handed out again to the next student who registers. Two students,
+ * one id, and payments landing on the wrong person. So the ledger stays the
+ * only thing that mints ids, and reserving one goes through here.
+ *
+ * The entry is keyed 'reserved:<slug>' because there is no PeopleID yet. When
+ * the student does register, --link swaps that for the real key rather than
+ * minting a second id.
+ *
+ *   --reserve "Alex Rivera" [--team samurai]
+ */
+if (reserve) {
+  const name = reserve.trim();
+  if (!name) {
+    console.error('\nExpected --reserve "Alex Rivera"\n');
+    process.exit(1);
+  }
+  const team = val('team', 'samurai');
+  if (!TEAMS[team]) {
+    console.error(`\nUnknown team ${team}. Expected one of: ${Object.keys(TEAMS).join(', ')}\n`);
+    process.exit(1);
+  }
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const key = `reserved:${slug}`;
+  if (state.participants[key]) {
+    console.error(`\n${name} already has ${state.participants[key].participantId} reserved.\n`);
+    process.exit(1);
+  }
+
+  const pid = nextParticipantId(state, team);
+  // The name is kept only for as long as the reservation exists — it is the
+  // one thing that lets --link find this entry later. It is removed when the
+  // FIRST record arrives, so the ledger goes back to holding no names.
+  state.participants[key] = {
+    participantId: pid,
+    team,
+    reservedName: name,
+    reservedAt: new Date().toISOString().slice(0, 10),
+  };
+  saveState(state);
+
+  console.log(`Reserved ${pid} for ${name} (${TEAMS[team].label}).`);
+  console.log('Add them to the Roster sheet with that id and bill from their start month.');
+  console.log(`When FIRST registration comes through:  --link ${pid}=<peopleId>`);
+  process.exit(0);
+}
+
+/**
+ * Attach a FIRST record to an id that was already reserved.
+ *
+ * Re-keys the entry from 'reserved:<slug>' to the PeopleID, so from here on the
+ * student is indistinguishable from one who registered before they started —
+ * and keeps the id their payments are already filed under.
+ *
+ *   --link TDS-27-009=6801234
+ */
+if (linkId) {
+  const m = /^([A-Za-z]+-\d+-\d+)=(\d+)$/.exec(linkId.trim());
+  if (!m) {
+    console.error('\nExpected --link TDS-27-009=6801234\n');
+    process.exit(1);
+  }
+  const [, rawPid, peopleId] = m;
+  const pid = rawPid.toUpperCase();
+
+  const hit = Object.entries(state.participants).find(([, v]) => v.participantId === pid);
+  if (!hit) {
+    console.error(`\nNo ledger entry for ${pid}. Reserve it first with --reserve.\n`);
+    process.exit(1);
+  }
+  const [oldKey, entry] = hit;
+  if (!oldKey.startsWith('reserved:')) {
+    console.error(`\n${pid} is already linked to PeopleID ${oldKey}. Nothing to do.\n`);
+    process.exit(1);
+  }
+  if (state.participants[peopleId]) {
+    console.error(
+      `\nPeopleID ${peopleId} already holds ${state.participants[peopleId].participantId}.\n` +
+        'Linking would give one student two ids. Sort that out by hand.\n'
+    );
+    process.exit(1);
+  }
+
+  const who = entry.reservedName ?? pid;
+  delete entry.reservedName;
+  delete entry.reservedAt;
+  entry.linkedAt = new Date().toISOString().slice(0, 10);
+  state.participants[peopleId] = entry;
+  delete state.participants[oldKey];
+  saveState(state);
+
+  console.log(`Linked ${pid} (${who}) to FIRST PeopleID ${peopleId}.`);
+  console.log('Their id and payment history are unchanged; they now flow through the normal run.');
   process.exit(0);
 }
 
