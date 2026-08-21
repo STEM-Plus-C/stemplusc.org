@@ -918,8 +918,24 @@ for (const s of accepted) {
     continue;
   }
   if (!commit && existing) {
-    // Dry run: nothing was persisted, so do not pretend the Slack steps ran.
-    actions.push(`${tag}: would record as signed, then add to Slack`);
+    // Dry run: nothing is persisted, so report what a --commit would actually
+    // do — which for someone already through the whole flow is nothing. Saying
+    // "would add to Slack" about a student who was added last week reads as a
+    // pipeline that has lost track of itself.
+    const pending = [
+      !entry.slack.parent && 'parent',
+      !entry.slack.student && 'student',
+    ].filter(Boolean);
+    if (!entry.signedAt) {
+      actions.push(`${tag}: would record as signed`);
+    }
+    if (pending.length) {
+      actions.push(`${tag}: would add ${pending.join(' and ')} to Slack`);
+    } else if (!entry.slack.announced && ANNOUNCE) {
+      actions.push(`${tag}: would welcome in #${cfg.studentChannel}`);
+    } else if (entry.signedAt) {
+      actions.push(`${tag}: nothing to do — already signed and in Slack`);
+    }
     continue;
   }
 
