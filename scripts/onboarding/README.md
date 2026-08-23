@@ -30,7 +30,8 @@ time: every run advances whoever can advance and reports whoever is stuck.
 | 2 | Export the roster — open Team Roster, click **Get Roster** | *(bookmarklet)* |
 | 3 | Assign participant ids | `node scripts/onboarding/onboard.mjs <roster> --seed --commit` |
 | 4 | Get the packet emails | `node scripts/onboarding/onboard.mjs <roster> --email` |
-| 5 | Draft them in Outlook, review, send | `node scripts/onboarding/onboard.mjs <roster> --draft --commit` |
+| 5 | Review the real HTML | `node scripts/onboarding/onboard.mjs <roster> --preview` |
+| 6 | Send them | `node scripts/onboarding/onboard.mjs <roster> --send --commit` |
 | 6 | After families submit: record + add to Slack | `node scripts/onboarding/onboard.mjs <roster> --commit` |
 
 Run step 6 periodically even when nobody is pending — it surfaces new FIRST
@@ -67,9 +68,11 @@ change anything.
 | `--commit` | Writes the ledger, records signatures, adds people to Slack, posts the welcome |
 | `--seed` | Create ledger entries and assign participant ids; sends nothing |
 | `--email` | Print a ready-to-send email per accepted student |
+| `--preview` | Render the real HTML to a browser tab, for review without a mail client |
 | `--draft` | Leave that same email in Outlook Drafts, for review before sending |
 | `--send` | Deliver it, keeping a copy in Sent Items |
-| `--resend` | Email a family whose packet the ledger already records |
+| `--resend [id]` | Email a family whose packet the ledger already records; bare, or one id |
+| `--mark-emailed <id>` | Record a packet sent outside this script, so it is not sent twice |
 | `--links` | Print just the packet URLs, for a mail merge |
 | `--mark-signed <peopleId>` | Record someone who signed outside Jotform |
 | `--set-email <ID>:<student\|parent>=<addr>` | Correct an address FIRST has wrong |
@@ -740,6 +743,36 @@ Fill in the same shape and the refusal goes away.
 
 `cc` copies additional people per team. Both are `[]` — the coach is the
 sender, and copying yourself on your own mail helps nobody.
+
+### Reviewing before you send
+
+`--preview` renders every pending packet — the real HTML, exactly what `--send`
+delivers — into one page and opens it. Each is shown under its own envelope:
+participant id, recipient, Reply-To, sender, subject. A perfect email to the
+wrong address is still wrong, so the envelope is part of what you check.
+
+It exists because the sending mailbox is a *shared* mailbox, and Apple Mail
+will not mount one. Reviewing in a mail client is an Outlook-only luxury; this
+needs no mail client at all.
+
+Previews are written to `~/STEMC-onboarding/previews/`, never inside the repo —
+they carry family names and addresses.
+
+### Why the sender is a shared mailbox
+
+Microsoft blocks app-only access to mailboxes belonging to privileged
+administrators, at the service level. The founder is a tenant admin, so no
+access policy can let the app draft into that mailbox — the failure is
+`[RAOP] : Blocked by tenant configured AppOnly AccessPolicy settings`, and it
+appeared the moment the restriction propagated, having worked minutes earlier.
+
+A distribution list is not a substitute: it has no mailbox store, holds no
+drafts, and Graph answers `404 ErrorInvalidUser` rather than `403`.
+
+So packets are sent from `registration@stemplusc.org`, a shared mailbox that
+needs no licence and belongs to no admin. `graph-create-sender.ps1` provisions
+it. Replies do not go there — each team's packet carries a Reply-To of its own
+head coach, so a family reaches the person running their season.
 
 ### How the email is built
 

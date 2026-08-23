@@ -175,12 +175,16 @@ export async function graph(path, { method = 'GET', body } = {}) {
  * HTML. The text rendering is what `--email` prints, and stays the fallback
  * for anything that has no html.
  */
-function message({ to, cc = [], subject, body, html }) {
+function message({ to, cc = [], replyTo = [], subject, body, html }) {
   return {
     subject,
     body: html ? { contentType: 'HTML', content: html } : { contentType: 'Text', content: body },
     toRecipients: [{ emailAddress: { address: to } }],
     ccRecipients: cc.map((address) => ({ emailAddress: { address } })),
+    // The packet says "just reply to this email", so where a reply lands is
+    // part of the message, not a detail. It goes to the team's own coach —
+    // never to whichever mailbox happened to send it.
+    replyTo: replyTo.map((address) => ({ emailAddress: { address } })),
   };
 }
 

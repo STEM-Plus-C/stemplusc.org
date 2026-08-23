@@ -41,9 +41,14 @@
  *   node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed]
  *   node scripts/onboarding/onboard.mjs <roster.json> --links        # print links, do nothing else
  *   node scripts/onboarding/onboard.mjs <roster.json> --email        # print ready-to-send emails
+ *   node scripts/onboarding/onboard.mjs <roster.json> --preview      # see the real HTML in a browser
+ *   node scripts/onboarding/onboard.mjs <roster.json> --check-sent   # did the coach send the drafts?
  *   node scripts/onboarding/onboard.mjs <roster.json> --draft --commit  # leave them in Drafts
+ *   node scripts/onboarding/onboard.mjs <roster.json> --draft --commit --resend TDS-27-009
  *   node scripts/onboarding/onboard.mjs <roster.json> --send --commit   # deliver them
  *   node scripts/onboarding/onboard.mjs <roster.json> --mark-signed <peopleId>
+ *   node scripts/onboarding/onboard.mjs --mark-emailed TDS-27-005 --commit
+ *   node scripts/onboarding/onboard.mjs --mark-emailed all-issued --commit
  *   node scripts/onboarding/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
  *   node scripts/onboarding/onboard.mjs <roster.json> --set-start TDS-27-004=2026-10-01
  *   node scripts/onboarding/onboard.mjs <roster.json> --dues
@@ -62,6 +67,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { renderText, renderHtml } from './packet-email.mjs';
@@ -137,10 +143,14 @@ const TEAMS = {
      */
     cc: [],
     /**
-     * Jedi packets are drafted into the Jedi head coach's own mailbox, so they
-     * go out from — and replies come back to — the coach running that season,
-     * not whoever happened to run the script. Reaching this mailbox requires
-     * the Graph access policy to cover it; see the README.
+     * Jedi packets are drafted into the Jedi head coach's own mailbox: they go
+     * out from him, and he decides when. --send refuses for this team, because
+     * sending as someone who has not read the mail is a different act from
+     * writing them a draft.
+     *
+     * The cost is that the ledger cannot see him press send. It records the
+     * draft; --check-sent reconciles the rest by looking at what has left his
+     * Drafts folder.
      */
     mailbox: 'rob@stemplusc.org',
     signature: {
@@ -219,9 +229,22 @@ const seedOnly = has('seed');
 const linksOnly = has('links');
 const emailOnly = has('email');
 const draftOnly = has('draft');
+const previewOnly = has('preview');
+const checkSent = has('check-sent');
 const sendOnly = has('send');
-const resend = has('resend');
+/**
+ * --resend             re-send every family in this run
+ * --resend TDS-27-009  re-send just that one
+ *
+ * Only something shaped like a participant id counts as the value. Otherwise
+ * `--draft --resend <roster>` would swallow the roster path and leave the
+ * script with no roster — a silent misfire rather than an error.
+ */
+const resendArg = val('resend', null);
+const resendIds = resendArg && /^TD[SJ]-\d+-\d+$/i.test(resendArg) ? [resendArg.toUpperCase()] : [];
+const resendAll = has('resend') && resendIds.length === 0;
 const markSigned = val('mark-signed', null);
+const markEmailed = val('mark-emailed', null);
 const setEmail = val('set-email', null);
 const setStart = val('set-start', null);
 const duesOnly = has('dues');
@@ -230,11 +253,13 @@ const linkId = val('link', null);
 
 // Every flag that takes a value, so its value is not mistaken for the roster
 // path. Miss one here and rosterPath silently becomes that flag's argument.
-const VALUE_FLAGS = ['--state', '--mark-signed', '--set-email', '--set-start', '--reserve', '--link'];
+const VALUE_FLAGS = ['--state', '--mark-signed', '--mark-emailed', '--set-email', '--set-start', '--reserve', '--link',
+  // Only consumes a value when that value was a participant id; see above.
+  ...(resendIds.length ? ['--resend'] : [])];
 const rosterPath = argv.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(argv[i - 1]));
 
 // These manage the ledger and never read a roster.
-const ledgerOnly = markSigned || setEmail || setStart || reserve || linkId;
+const ledgerOnly = markSigned || markEmailed || setEmail || setStart || reserve || linkId;
 
 if (!rosterPath && !ledgerOnly) {
   console.error(
@@ -741,6 +766,65 @@ if (markSigned) {
 }
 
 /**
+ * Record a packet email that went out without this script.
+ *
+ * The draft/send stamps arrived after families had already been emailed by
+ * hand, so every entry written before them reads as "never emailed" — and a
+ * --draft run would send those families their packet a second time. This
+ * records what already happened.
+ *
+ *   --mark-emailed TDS-27-005    one family, by participant id or PeopleID
+ *   --mark-emailed all-issued    every entry with a link issued but no packet
+ *                                stamp; the one-time migration
+ *
+ * Dated from the best evidence available rather than from now: a draft this
+ * script created, else the day the link was issued, else today. A ledger that
+ * always said "today" would misdate the only record of when a packet went out
+ * — and the date it holds is what tells you how long a family has been sitting
+ * on an unanswered packet.
+ */
+if (markEmailed) {
+  const entries = Object.entries(state.participants);
+  let targets;
+
+  if (markEmailed === 'all-issued') {
+    // Drafted-but-not-marked-sent counts too: you press send in Outlook, and
+    // nothing tells the ledger it happened.
+    targets = entries.filter(([, e]) => (e.linkIssuedAt || e.packetDraftedAt) && !e.packetSentAt);
+  } else {
+    const hit = entries.find(([key, e]) => key === markEmailed || e.participantId === markEmailed);
+    if (!hit) {
+      console.error(`\nNo ledger entry for ${markEmailed}. Use a participant id or a PeopleID.\n`);
+      process.exit(1);
+    }
+    targets = [hit];
+  }
+
+  if (!targets.length) {
+    console.log('Nothing to mark — no entry has a link issued without a packet stamp.');
+    process.exit(0);
+  }
+
+  const sentAt = (e) => e.packetDraftedAt ?? e.linkIssuedAt ?? new Date().toISOString();
+
+  for (const [, e] of targets) {
+    console.log(`  ${e.participantId}  packet recorded as sent ${sentAt(e).slice(0, 10)}`);
+  }
+
+  if (commit) {
+    for (const [, e] of targets) {
+      e.packetSentAt = sentAt(e);
+      e.packetSentVia = 'manual';
+    }
+    saveState(state);
+    console.log(`\nMarked ${targets.length} — --draft and --send will skip them from now on.\n`);
+  } else {
+    console.log(`\nDry run — pass --commit to write ${targets.length} entr(ies) to the ledger.\n`);
+  }
+  process.exit(0);
+}
+
+/**
  * Correct an email locally, without touching FIRST.
  *
  * FIRST's copy is sometimes wrong and sometimes uncorrectable — an address
@@ -1037,6 +1121,167 @@ if (emailOnly) {
   process.exit(0);
 }
 
+// --check-sent: find out whether drafts left the coach's mailbox.
+//
+// A team whose packets are drafted into its own coach's mailbox gets one thing
+// the shared mailbox does not: nobody can tell whether he pressed send. The
+// ledger records the draft and then goes quiet. A family waiting a week on a
+// packet that is still sitting in Drafts looks exactly like one ignoring it.
+//
+// So ask. The draft id was recorded when it was created: if it is still there
+// and still a draft, it was never sent; if it is gone, look in Sent Items to
+// confirm it actually left rather than being deleted.
+if (checkSent) {
+  const pending = Object.values(state.participants).filter(
+    (e) => e.packetDraftId && !e.packetSentAt
+  );
+  if (!pending.length) {
+    console.log('\nNo outstanding drafts — every packet is recorded as sent.\n');
+    process.exit(0);
+  }
+
+  const { graph } = await import('./graph-mail.mjs');
+  // Recipients are re-read from the roster: the ledger deliberately holds no
+  // addresses, so it cannot answer "was this sent to whom" on its own.
+  const byId = new Map();
+  for (const s2 of accepted) {
+    const e = state.participants[String(s2.PeopleID)];
+    if (e) byId.set(e.participantId, people(s2).guardian.email);
+  }
+
+  let sent = 0, waiting = 0, missing = 0;
+  console.log('');
+
+  for (const e of pending) {
+    const box = e.packetDraftMailbox;
+    const who = e.participantId;
+    let stillDraft = false;
+
+    try {
+      const m = await graph(`/users/${encodeURIComponent(box)}/messages/${e.packetDraftId}?$select=isDraft`);
+      stillDraft = m.isDraft !== false;
+    } catch (err) {
+      if (err.status !== 404 && err.code !== 'ErrorItemNotFound') {
+        console.log(`  ?      ${who} — could not check ${box}: ${err.code ?? err.message}`);
+        continue;
+      }
+    }
+
+    if (stillDraft) {
+      console.log(`  wait   ${who} — still sitting in ${box} Drafts, unsent since ${e.packetDraftedAt.slice(0, 10)}`);
+      waiting++;
+      continue;
+    }
+
+    // Gone from Drafts. Confirm it was sent rather than discarded.
+    const to = byId.get(who);
+    let confirmed = null;
+    try {
+      const r = await graph(
+        `/users/${encodeURIComponent(box)}/mailFolders/sentitems/messages?$top=100&$select=sentDateTime,toRecipients,subject&$orderby=sentDateTime desc`
+      );
+      confirmed = r.value.find(
+        (m) =>
+          /registration link/i.test(m.subject || '') &&
+          m.toRecipients.some((x) => x.emailAddress.address.toLowerCase() === String(to).toLowerCase())
+      );
+    } catch { /* fall through to "gone but unconfirmed" */ }
+
+    if (confirmed) {
+      console.log(`  sent   ${who} — ${confirmed.sentDateTime.slice(0, 10)} to ${to}`);
+      if (commit) {
+        e.packetSentAt = confirmed.sentDateTime;
+        e.packetSentVia = 'coach';
+      }
+      sent++;
+    } else {
+      console.log(`  GONE   ${who} — draft no longer in ${box}, and nothing to ${to} in Sent. Deleted?`);
+      missing++;
+    }
+  }
+
+  if (commit && sent) saveState(state);
+  console.log(
+    `\n${sent} sent, ${waiting} still waiting, ${missing} unaccounted for` +
+      (commit ? '\n' : `\nDry run — pass --commit to record the ${sent} confirmed.\n`)
+  );
+  process.exit(missing ? 1 : 0);
+}
+
+// --preview: render the real HTML to a browser, for review before sending.
+//
+// The draft step exists so a person reads the mail before a family does. That
+// review does not have to happen in a mail client — and it cannot, comfortably,
+// when the sending mailbox is a shared one that Apple Mail will not mount.
+// This shows exactly what --send would deliver, with no mailbox involved.
+//
+// Everyone who would get a packet, on one page: reviewing eleven browser tabs
+// is not reviewing. Writes outside the repo like every other output here,
+// because it contains family names and addresses.
+if (previewOnly) {
+  if (!formId) {
+    console.error(`\n${cfg.formEnv} is not set — cannot build packet links.\n`);
+    process.exit(1);
+  }
+  if (!cfg.signature) {
+    console.error(`\n${cfg.label} has no coach signature set — nothing to preview.\n`);
+    process.exit(1);
+  }
+
+  const replyTo = cfg.signature.email;
+  const parts = [];
+  let shown = 0;
+
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    const { student, guardian } = people(s);
+    if (!guardian.email) continue;
+
+    const already = entry.packetSentAt || entry.packetDraftedAt;
+    const repeat = resendAll || resendIds.includes(entry.participantId);
+    if (already && !repeat) continue;
+
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian, team });
+    const mail = packetEmail({ team, participantId: entry.participantId, student, guardian, link });
+    shown++;
+
+    // The envelope is part of what needs checking — a perfect email to the
+    // wrong address is still wrong — so it is shown above each rendering.
+    parts.push(
+      `<div style="font:13px ui-monospace,Menlo,monospace;background:#081f3f;color:#fff;padding:12px 16px;margin:32px 0 0;">` +
+        `<strong>${entry.participantId}</strong> &nbsp; ${student.legalFirst} ${student.last}<br>` +
+        `To: ${guardian.email} &nbsp;·&nbsp; Reply-To: ${replyTo} &nbsp;·&nbsp; From: ${cfg.mailbox || process.env.MS_SENDER || '(MS_SENDER)'}<br>` +
+        `Subject: ${mail.subject}</div>` +
+        `<iframe srcdoc="${mail.html.replace(/"/g, '&quot;')}" style="width:100%;height:900px;border:1px solid #d0d7de;display:block;"></iframe>`
+    );
+  }
+
+  if (!shown) {
+    console.log('\nNobody is waiting on a packet — nothing to preview.\n');
+    process.exit(0);
+  }
+
+  const dir = join(homedir(), 'STEMC-onboarding', 'previews');
+  assertOutsideRepo(dir, 'write packet previews to');
+  mkdirSync(dir, { recursive: true });
+  const out = join(dir, `packet-preview-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.html`);
+
+  writeFileSync(
+    out,
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Packet preview — ${cfg.label}</title></head>` +
+      `<body style="margin:0;padding:0 24px 48px;background:#f4f6f8;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">` +
+      `<h1 style="font-size:17px;color:#081f3f;padding-top:24px;">${shown} packet(s) — ${cfg.label} — exactly what --send would deliver</h1>` +
+      parts.join('') +
+      `</body></html>`,
+    'utf8'
+  );
+
+  console.log(`\n${shown} packet(s) written to ${out}`);
+  console.log(`Review, then: node scripts/onboarding/onboard.mjs <roster> --send --commit\n`);
+  spawn('open', [out], { stdio: 'ignore', detached: true }).unref();
+  process.exit(0);
+}
+
 // --draft / --send: put the packet email in the mailbox, or deliver it.
 //
 // Both use exactly what --email prints. packetEmail() stays the single copy of
@@ -1066,6 +1311,10 @@ if (draftOnly || sendOnly) {
   // who would get mail is most useful *before* Graph is set up, not after.
   const sender = commit ? graphEnv().sender : process.env.MS_SENDER || '(MS_SENDER not set)';
   const mailbox = cfg.mailbox || sender;
+  // A family replies to their own coach, whatever mailbox the packet was sent
+  // from. Once the sender is a shared mailbox this is the only thing keeping
+  // replies attached to a person.
+  const replyTo = [cfg.signature.email];
   const foreign = Boolean(cfg.mailbox) && cfg.mailbox.toLowerCase() !== sender.toLowerCase();
 
   // Drafting into another coach's mailbox is the point: they read it and press
@@ -1082,7 +1331,7 @@ if (draftOnly || sendOnly) {
   }
 
   console.log(
-    `Mail:   ${sendOnly ? 'deliver' : 'draft'} into ${mailbox}` +
+    `Mail:   ${sendOnly ? 'deliver' : 'draft'} into ${mailbox}, replies to ${replyTo.join(', ')}` +
       (foreign ? ` (signed ${cfg.signature.name}, not you)` : '') +
       (cfg.cc.length ? `, cc ${cfg.cc.join(', ')}` : '') +
       (commit ? '' : ' — dry run, nothing will be created') +
@@ -1107,7 +1356,8 @@ if (draftOnly || sendOnly) {
     // Steps 3–6 are documented as safe to repeat, so this path has to be too.
     // Without this stamp a second run mails every family their packet twice.
     const already = entry.packetSentAt || entry.packetDraftedAt;
-    if (already && !resend) {
+    const repeat = resendAll || resendIds.includes(entry.participantId);
+    if (already && !repeat) {
       const what = entry.packetSentAt ? 'sent' : 'drafted';
       console.log(`  skip   ${who} — packet ${what} ${already.slice(0, 10)} (--resend to repeat)`);
       skipped++;
@@ -1124,12 +1374,16 @@ if (draftOnly || sendOnly) {
 
     try {
       if (sendOnly) {
-        await sendMail({ mailbox, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        await sendMail({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
         entry.packetSentAt = new Date().toISOString();
         console.log(`  sent   ${who} → ${mail.to}`);
       } else {
-        const draft = await createDraft({ mailbox, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        const draft = await createDraft({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
         entry.packetDraftedAt = new Date().toISOString();
+        // Kept so --check-sent can ask whether this specific draft is still
+        // sitting unsent, rather than guessing from subject lines.
+        entry.packetDraftId = draft.id;
+        entry.packetDraftMailbox = mailbox;
         console.log(`  draft  ${who} → ${mail.to}`);
         console.log(`         ${draft.webLink}`);
       }
