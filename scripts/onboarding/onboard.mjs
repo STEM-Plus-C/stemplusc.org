@@ -1497,7 +1497,18 @@ for (const s of accepted) {
   // with an unsigned liability release. jotform-check.mjs enforces the
   // required flags for exactly this reason.
   if (!entry.signedAt && !existing) {
-    worklist.push(`${tag}: packet issued, not yet submitted`);
+    // How long they have had it decides whether this is worth acting on. A
+    // family emailed this morning has not gone quiet; saying so alongside one
+    // that has been sitting a week buries the only line worth reading.
+    const since = entry.packetSentAt ?? entry.linkIssuedAt;
+    const days = since ? Math.floor((Date.now() - Date.parse(since)) / 86400000) : null;
+    worklist.push({
+      days,
+      line:
+        `${tag}: packet sent ` +
+        (days === null ? 'at an unknown date' : days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`) +
+        ', not yet submitted',
+    });
     continue;
   }
   if (!commit && existing) {
@@ -1586,9 +1597,24 @@ if (commit) saveState(state);
 console.log(actions.length ? `Actions (${actions.length}):` : 'Actions: none');
 for (const a of actions) console.log(`  • ${a}`);
 
+// Three days is the line: long enough that a family has had a weekend or an
+// evening to get to it, short enough to catch a packet that never arrived.
+const CHASE_AFTER_DAYS = 3;
+
 if (worklist.length) {
-  console.log(`\nNeeds attention (${worklist.length}):`);
-  for (const w of worklist) console.log(`  • ${w}`);
+  // Entries that predate the wait-time tracking are plain strings.
+  const items = worklist.map((w) => (typeof w === 'string' ? { days: null, line: w } : w));
+  const chase = items.filter((w) => w.days === null || w.days >= CHASE_AFTER_DAYS);
+  const recent = items.filter((w) => w.days !== null && w.days < CHASE_AFTER_DAYS);
+
+  if (chase.length) {
+    console.log(`\nNeeds attention (${chase.length}):`);
+    for (const w of chase.sort((a, b) => (b.days ?? 0) - (a.days ?? 0))) console.log(`  • ${w.line}`);
+  }
+  if (recent.length) {
+    console.log(`\nWaiting, recently sent (${recent.length}) — no action needed yet:`);
+    for (const w of recent.sort((a, b) => (b.days ?? 0) - (a.days ?? 0))) console.log(`  • ${w.line}`);
+  }
 }
 
 console.log(
