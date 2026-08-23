@@ -18,43 +18,81 @@ set -a; source .env; set +a
 ### The workflow
 
 ```
-FIRST: parent applies  →  you accept  →  packet emailed  →  family signs  →  Slack
+FIRST: parent applies → you accept → packet emailed → family signs → Slack
 ```
 
-Each numbered step below is one command. Steps 3–6 are safe to repeat at any
-time: every run advances whoever can advance and reports whoever is stuck.
+Steps 3 onward are safe to repeat at any time: every run advances whoever can
+advance and reports whoever is stuck. Nothing is ever sent twice — the ledger
+records each packet, and a repeat run skips anyone who already has theirs.
 
 | # | Step | Command |
 |---|---|---|
 | 1 | Accept the student in the FIRST Dashboard | *(in the browser)* |
 | 2 | Export the roster — open Team Roster, click **Get Roster** | *(bookmarklet)* |
-| 3 | Assign participant ids | `node scripts/onboarding/onboard.mjs <roster> --seed --commit` |
-| 4 | Get the packet emails | `node scripts/onboarding/onboard.mjs <roster> --email` |
-| 5 | Review the real HTML | `node scripts/onboarding/onboard.mjs <roster> --preview` |
-| 6 | Send them | `node scripts/onboarding/onboard.mjs <roster> --send --commit` |
-| 6 | After families submit: record + add to Slack | `node scripts/onboarding/onboard.mjs <roster> --commit` |
+| 3 | Assign participant ids | `onboard.mjs <roster> --seed --commit` |
+| 4 | Review the packets — opens a browser tab | `onboard.mjs <roster> --preview` |
+| 5 | Send them — **differs per team, see below** | |
+| 6 | After families submit: record + add to Slack | `onboard.mjs <roster> --commit` |
 
 Run step 6 periodically even when nobody is pending — it surfaces new FIRST
 applications waiting on a decision, which is how you find out someone applied.
 
-### One-time setup
+**Step 5, Tie Dye Samurai** — sent directly, from the shared mailbox:
+
+```bash
+node scripts/onboarding/onboard.mjs <roster> --send --commit
+```
+
+**Step 5, Tie Dye Jedi** — drafted into the Jedi coach's own mailbox, for him
+to send. `--send` refuses for this team on purpose: putting his name on mail he
+has never read is a different act from writing him a draft.
+
+```bash
+node scripts/onboarding/onboard.mjs <roster> --draft --commit   # into his Drafts
+node scripts/onboarding/onboard.mjs <roster> --check-sent       # did he send them?
+```
+
+`--check-sent` is not optional housekeeping. Drafting into someone else's
+mailbox means nobody can see whether they pressed send, and a family waiting a
+week on a packet still sitting in Drafts looks exactly like a family ignoring
+one. It asks his mailbox directly and confirms against Sent Items.
+
+### Where this stands
 
 | | |
 |---|---|
 | ✅ | Both Jotform forms built and verified |
 | ✅ | Policy documents published at stemplusc.org/policies, with PDFs |
 | ✅ | Roster bookmarklet installed |
-| ✅ | `.env` with the Jotform key, both form ids, and the Slack bot token |
-| ⬜ | `.env` with the four `MS_*` values, and an access policy scoping the app to one mailbox |
+| ✅ | `.env` — Jotform key, both form ids, Slack bot token, four `MS_*` values |
+| ✅ | Entra app registered, `Mail.Send` + `Mail.ReadWrite` admin-consented |
+| ✅ | Access policy restricting the app to `stemc-onboarding-senders` — proven by a denial, not just a grant |
+| ✅ | `registration@stemplusc.org` shared mailbox created and sending |
 | ✅ | Slack app installed, bot invited to all four channels |
 | ✅ | All three sites deployed |
+| ⬜ | FTC dues for the season — `TEAMS.jedi.dues` is `null`, so dues reporting skips the team |
 
-Verify setup any time:
+The mail path is live for both teams. Samurai has run end to end against real
+families; Jedi is configured and dry-run tested but has not carried a real
+season yet.
+
+**To find out where the current season actually stands, ask the script** — this
+file will not know, and family names do not belong in a public repository:
+
+```bash
+node scripts/onboarding/onboard.mjs <roster>          # dry run: who is stuck, and on what
+node scripts/onboarding/onboard.mjs <roster> --dues   # what each family owes
+```
+
+The dry run is the real status report: it reads FIRST, Jotform and the ledger
+together and prints what would happen, changing nothing.
+
+Verify the plumbing any time:
 
 ```bash
 node scripts/onboarding/slack-check.mjs      # token, scopes, channels, membership
 node scripts/onboarding/jotform-check.mjs    # both forms against the field spec
-node scripts/onboarding/graph-check.mjs      # mail: token, consent, mailbox, scoping
+node scripts/onboarding/graph-check.mjs --mailbox rob@stemplusc.org
 ```
 
 ### Every command
@@ -69,10 +107,11 @@ change anything.
 | `--seed` | Create ledger entries and assign participant ids; sends nothing |
 | `--email` | Print a ready-to-send email per accepted student |
 | `--preview` | Render the real HTML to a browser tab, for review without a mail client |
-| `--draft` | Leave that same email in Outlook Drafts, for review before sending |
+| `--draft` | Leave the email in the team coach's Drafts, for them to send |
 | `--send` | Deliver it, keeping a copy in Sent Items |
 | `--resend [id]` | Email a family whose packet the ledger already records; bare, or one id |
 | `--mark-emailed <id>` | Record a packet sent outside this script, so it is not sent twice |
+| `--check-sent` | Ask whether drafts left a coach's mailbox; `--commit` records the send |
 | `--links` | Print just the packet URLs, for a mail merge |
 | `--mark-signed <peopleId>` | Record someone who signed outside Jotform |
 | `--set-email <ID>:<student\|parent>=<addr>` | Correct an address FIRST has wrong |
@@ -650,7 +689,7 @@ Never commit these — this repository is public.
 | `MS_TENANT_ID` | Entra directory (tenant) id |
 | `MS_CLIENT_ID` | Entra application (client) id |
 | `MS_CLIENT_SECRET` | The secret **Value** — not the Secret ID beside it |
-| `MS_SENDER` | Mailbox to send as, e.g. `steven@stemplusc.org` |
+| `MS_SENDER` | Shared mailbox to send from — `registration@stemplusc.org`. **Not an admin's mailbox**; see below |
 
 ## Sending mail — Microsoft Graph
 
@@ -689,40 +728,73 @@ token itself, which is the only place the truth is visible.
 immediately — it is shown once and cannot be recovered, and the **Secret ID**
 next to it is not it. Put the expiry in the season checklist.
 
-### 4. Restrict it to one mailbox
+### 4. Create the sending mailbox
+
+**The sender cannot be an administrator's mailbox.** Microsoft blocks app-only
+access to mailboxes belonging to privileged administrators, at the service
+level — no access policy can grant it back. It fails with:
+
+```
+403 ErrorAccessDenied
+[RAOP] : Blocked by tenant configured AppOnly AccessPolicy settings
+```
+
+This is worth knowing in advance because it does not fail early or obviously:
+drafting into the founder's mailbox worked for about forty minutes, then
+stopped mid-session when the restriction propagated. Everything else looked
+correct at the time — one policy, right scope, both mailboxes `Granted`, no
+org-level setting. The only difference between the mailbox that worked and the
+one that did not was membership of `TenantAdmins`.
+
+A distribution list is not a substitute. It has no mailbox store, so it can
+hold no drafts and originate no mail; Graph answers `404 ErrorInvalidUser`
+rather than `403`. The two failures look similar and are not.
+
+So packets send from a **shared mailbox** — no licence, owned by no admin:
+
+```bash
+brew install --cask powershell    # if needed
+pwsh -File scripts/onboarding/graph-create-sender.ps1
+```
+
+It creates `registration@stemplusc.org`, grants Full Access and Send As, adds
+it to the access group, and verifies. Override with `-Address` / `-DisplayName`.
+
+### 5. Restrict the app to those mailboxes
 
 `Mail.Send` as an application permission covers **every mailbox in the
-tenant**. That is far more reach than this script needs for a secret sitting in
-a `.env` file, and nothing in Entra narrows it. An Exchange
-`ApplicationAccessPolicy` does:
+tenant** — far more reach than this needs for a secret sitting in a `.env`
+file, and nothing in Entra narrows it. An Exchange `ApplicationAccessPolicy`
+scoped to a group does:
 
 ```bash
-brew install --cask powershell   # if needed
-pwsh
+pwsh -File scripts/onboarding/graph-access-policy.ps1
 ```
 
-```powershell
-Install-Module ExchangeOnlineManagement -Scope CurrentUser
-Connect-ExchangeOnline -UserPrincipalName steven@stemplusc.org
+A group rather than a single address, because packets are drafted into more
+than one mailbox: the shared sender, and each coach whose team drafts into
+their own. Adding a coach later means adding them to the group.
 
-New-ApplicationAccessPolicy `
-  -AppId <client-id> `
-  -PolicyScopeGroupId steven@stemplusc.org `
-  -AccessRight RestrictAccess `
-  -Description "STEM+C onboarding mailer"
+The script proves the restriction rather than assuming it — it finds a mailbox
+outside the group and requires that one to come back **Denied**. "Granted for
+the people we listed" is equally true of a policy that does not exist, so a
+grant alone proves nothing. Propagation can take up to an hour.
 
-Test-ApplicationAccessPolicy -Identity steven@stemplusc.org -AppId <client-id>
-```
-
-Propagation can take up to an hour. `graph-check.mjs` probes a second mailbox
-and fails if it can reach one — a denial there is the result you want.
-
-### 5. Verify, then send to yourself first
+### 6. Verify
 
 ```bash
-node scripts/onboarding/graph-check.mjs
-node scripts/onboarding/onboard.mjs <roster> --draft            # dry run
-node scripts/onboarding/onboard.mjs <roster> --draft --commit   # real drafts
+node scripts/onboarding/graph-check.mjs --mailbox rob@stemplusc.org
+```
+
+Checks the token, that both permissions were actually admin-consented (read out
+of the token itself, not the portal), that every sending mailbox is reachable,
+and that the restriction holds.
+
+Then send yourself one before any family sees it:
+
+```bash
+node scripts/onboarding/onboard.mjs <roster> --preview          # the real HTML
+node scripts/onboarding/onboard.mjs <roster> --draft --commit   # a real draft
 ```
 
 `--draft` is the one to use. It builds the message, addresses it, and leaves it
@@ -760,19 +832,12 @@ they carry family names and addresses.
 
 ### Why the sender is a shared mailbox
 
-Microsoft blocks app-only access to mailboxes belonging to privileged
-administrators, at the service level. The founder is a tenant admin, so no
-access policy can let the app draft into that mailbox — the failure is
-`[RAOP] : Blocked by tenant configured AppOnly AccessPolicy settings`, and it
-appeared the moment the restriction propagated, having worked minutes earlier.
+Because it cannot be a person's — see [Create the sending
+mailbox](#4-create-the-sending-mailbox) for the constraint and the evidence.
 
-A distribution list is not a substitute: it has no mailbox store, holds no
-drafts, and Graph answers `404 ErrorInvalidUser` rather than `403`.
-
-So packets are sent from `registration@stemplusc.org`, a shared mailbox that
-needs no licence and belongs to no admin. `graph-create-sender.ps1` provisions
-it. Replies do not go there — each team's packet carries a Reply-To of its own
-head coach, so a family reaches the person running their season.
+Replies do not go to the shared mailbox. Each team's packet carries a Reply-To
+of its own head coach, so a family reaches the person running their season
+rather than whichever mailbox happened to send it.
 
 ### How the email is built
 
