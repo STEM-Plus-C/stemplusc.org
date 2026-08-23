@@ -815,6 +815,7 @@ if (markEmailed) {
     for (const [, e] of targets) {
       e.packetSentAt = sentAt(e);
       e.packetSentVia = 'manual';
+      e.linkIssuedAt = e.linkIssuedAt ?? e.packetSentAt;
     }
     saveState(state);
     console.log(`\nMarked ${targets.length} — --draft and --send will skip them from now on.\n`);
@@ -1376,10 +1377,16 @@ if (draftOnly || sendOnly) {
       if (sendOnly) {
         await sendMail({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
         entry.packetSentAt = new Date().toISOString();
+        // Sending the packet *is* issuing the link. The main pipeline decides
+        // whether a family still needs one from linkIssuedAt, so leaving it
+        // unset makes every run keep saying "send this to" about someone who
+        // was emailed days ago.
+        entry.linkIssuedAt = entry.linkIssuedAt ?? entry.packetSentAt;
         console.log(`  sent   ${who} → ${mail.to}`);
       } else {
         const draft = await createDraft({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
         entry.packetDraftedAt = new Date().toISOString();
+        entry.linkIssuedAt = entry.linkIssuedAt ?? entry.packetDraftedAt;
         // Kept so --check-sent can ask whether this specific draft is still
         // sitting unsent, rather than guessing from subject lines.
         entry.packetDraftId = draft.id;
