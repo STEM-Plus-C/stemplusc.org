@@ -30,7 +30,7 @@ time: every run advances whoever can advance and reports whoever is stuck.
 | 2 | Export the roster — open Team Roster, click **Get Roster** | *(bookmarklet)* |
 | 3 | Assign participant ids | `node scripts/onboarding/onboard.mjs <roster> --seed --commit` |
 | 4 | Get the packet emails | `node scripts/onboarding/onboard.mjs <roster> --email` |
-| 5 | Send them *(paste into Outlook)* | — |
+| 5 | Draft them in Outlook, review, send | `node scripts/onboarding/onboard.mjs <roster> --draft --commit` |
 | 6 | After families submit: record + add to Slack | `node scripts/onboarding/onboard.mjs <roster> --commit` |
 
 Run step 6 periodically even when nobody is pending — it surfaces new FIRST
@@ -44,6 +44,7 @@ applications waiting on a decision, which is how you find out someone applied.
 | ✅ | Policy documents published at stemplusc.org/policies, with PDFs |
 | ✅ | Roster bookmarklet installed |
 | ✅ | `.env` with the Jotform key, both form ids, and the Slack bot token |
+| ⬜ | `.env` with the four `MS_*` values, and an access policy scoping the app to one mailbox |
 | ✅ | Slack app installed, bot invited to all four channels |
 | ✅ | All three sites deployed |
 
@@ -52,6 +53,7 @@ Verify setup any time:
 ```bash
 node scripts/onboarding/slack-check.mjs      # token, scopes, channels, membership
 node scripts/onboarding/jotform-check.mjs    # both forms against the field spec
+node scripts/onboarding/graph-check.mjs      # mail: token, consent, mailbox, scoping
 ```
 
 ### Every command
@@ -65,6 +67,9 @@ change anything.
 | `--commit` | Writes the ledger, records signatures, adds people to Slack, posts the welcome |
 | `--seed` | Create ledger entries and assign participant ids; sends nothing |
 | `--email` | Print a ready-to-send email per accepted student |
+| `--draft` | Leave that same email in Outlook Drafts, for review before sending |
+| `--send` | Deliver it, keeping a copy in Sent Items |
+| `--resend` | Email a family whose packet the ledger already records |
 | `--links` | Print just the packet URLs, for a mail merge |
 | `--mark-signed <peopleId>` | Record someone who signed outside Jotform |
 | `--set-email <ID>:<student\|parent>=<addr>` | Correct an address FIRST has wrong |
@@ -89,8 +94,16 @@ node scripts/onboarding/contact-sheet.mjs <roster> --open
 Flags gaps in orange: students with no contact, and any with no reachable
 guardian.
 
-**`jotform-check.mjs`** / **`slack-check.mjs`** — read-only preflights. Run
-after changing a form, a channel, or the Slack app.
+**`jotform-check.mjs`** / **`slack-check.mjs`** / **`graph-check.mjs`** —
+read-only preflights. Run after changing a form, a channel, the Slack app, or
+the mail app registration.
+
+**`graph-mail.mjs`** — sends as `MS_SENDER` through Microsoft Graph. Not run
+directly; `--draft` and `--send` use it.
+
+**`packet-email.mjs`** — renders the packet email to text and HTML. Not run
+directly. Edit this to change how the email *looks*; edit `packetEmail()` in
+`onboard.mjs` to change what it *says*.
 
 ### When FIRST has something wrong
 
@@ -111,6 +124,11 @@ silently in play.
 - `SEASON` and `SEASON_LABEL` in `onboard.mjs` — the participant id prefix and
   the wording in the packet email
 - `SIGNATURE` in `onboard.mjs` — if the coach changes
+- `signature` for each team in `TEAMS` — the coach a team's packets are signed
+  by. `null` refuses to send rather than signing a family's mail with the wrong
+  coach's name
+- The `MS_CLIENT_SECRET` expiry — it stops working on that date, with no
+  warning and no partial failure to notice first
 - `SITE.dues` in each team repo — the four numbers that change
 - `SITE.joinUrl` in each team repo — **FIRST issues new join links each season,
   and a stale one silently drops every family that clicks it**
@@ -626,6 +644,127 @@ Never commit these — this repository is public.
 | `JOTFORM_API_KEY` | Jotform API key (Settings → API) |
 | `JOTFORM_FORM_SAMURAI` | Form id for the FRC packet |
 | `JOTFORM_FORM_JEDI` | Form id for the FTC packet |
+| `MS_TENANT_ID` | Entra directory (tenant) id |
+| `MS_CLIENT_ID` | Entra application (client) id |
+| `MS_CLIENT_SECRET` | The secret **Value** — not the Secret ID beside it |
+| `MS_SENDER` | Mailbox to send as, e.g. `steven@stemplusc.org` |
+
+## Sending mail — Microsoft Graph
+
+stemplusc.org mail is Microsoft 365. `--draft` and `--send` go through Graph
+with an app registration, so the script needs no browser and no interactive
+sign-in.
+
+### 1. Register the app
+
+At [entra.microsoft.com](https://entra.microsoft.com), signed in as an admin:
+**Identity → Applications → App registrations → New registration**.
+
+| Field | Value |
+|---|---|
+| Name | `STEM+C Onboarding Mailer` |
+| Account types | Accounts in this organizational directory only (Single tenant) |
+| Redirect URI | *blank* — there is no interactive login |
+
+Copy the **Application (client) ID** and **Directory (tenant) ID** off the
+Overview page.
+
+### 2. Permissions
+
+**API permissions → Add a permission → Microsoft Graph → Application
+permissions.** Add `Mail.Send` and `Mail.ReadWrite`, then click **Grant admin
+consent** and confirm the Status column turns green.
+
+*Application*, not *Delegated*. Delegated permissions need a signed-in user and
+are useless here, but nothing complains until a call fails with a 403 that
+names nothing useful. `graph-check.mjs` reads the consented roles out of the
+token itself, which is the only place the truth is visible.
+
+### 3. Secret
+
+**Certificates & secrets → New client secret**, 24 months. Copy the **Value**
+immediately — it is shown once and cannot be recovered, and the **Secret ID**
+next to it is not it. Put the expiry in the season checklist.
+
+### 4. Restrict it to one mailbox
+
+`Mail.Send` as an application permission covers **every mailbox in the
+tenant**. That is far more reach than this script needs for a secret sitting in
+a `.env` file, and nothing in Entra narrows it. An Exchange
+`ApplicationAccessPolicy` does:
+
+```bash
+brew install --cask powershell   # if needed
+pwsh
+```
+
+```powershell
+Install-Module ExchangeOnlineManagement -Scope CurrentUser
+Connect-ExchangeOnline -UserPrincipalName steven@stemplusc.org
+
+New-ApplicationAccessPolicy `
+  -AppId <client-id> `
+  -PolicyScopeGroupId steven@stemplusc.org `
+  -AccessRight RestrictAccess `
+  -Description "STEM+C onboarding mailer"
+
+Test-ApplicationAccessPolicy -Identity steven@stemplusc.org -AppId <client-id>
+```
+
+Propagation can take up to an hour. `graph-check.mjs` probes a second mailbox
+and fails if it can reach one — a denial there is the result you want.
+
+### 5. Verify, then send to yourself first
+
+```bash
+node scripts/onboarding/graph-check.mjs
+node scripts/onboarding/onboard.mjs <roster> --draft            # dry run
+node scripts/onboarding/onboard.mjs <roster> --draft --commit   # real drafts
+```
+
+`--draft` is the one to use. It builds the message, addresses it, and leaves it
+in Drafts; you read it and press Send. `--send` skips that, and is worth
+reaching for only once the copy has stopped changing.
+
+Both stamp the ledger, so a repeat run skips anyone already emailed — steps 3–6
+are meant to be re-runnable, and without that stamp a second run would mail
+every family their packet twice. `--resend` overrides it deliberately.
+
+### Who it comes from
+
+`signature` in `TEAMS` sets the coach a team's packet emails are signed by —
+name, titles, the org tagline, email and phone. Samurai is filled in. Jedi is
+`null`, which makes `--draft` and `--send` **refuse to run for that team**:
+sending anyway would sign a Jedi family's mail with the Samurai coach's name.
+Fill in the same shape and the refusal goes away.
+
+`cc` copies additional people per team. Both are `[]` — the coach is the
+sender, and copying yourself on your own mail helps nobody.
+
+### How the email is built
+
+`packetEmail()` in `onboard.mjs` returns the message as a list of **blocks**,
+not a finished string. `packet-email.mjs` renders those blocks two ways: plain
+text for `--email` and the console, HTML for what a family actually receives.
+
+One source, two outputs. Two hand-maintained templates would drift the first
+time someone edited one and forgot the other, and the version that drifts is
+the one a family reads.
+
+To change the wording, edit the blocks in `packetEmail()`. To change how it
+*looks*, edit `packet-email.mjs` — it owns the design and nothing else.
+
+The design is deliberately not a newsletter. This email hands a family a
+liability release describing power tools and heavy robots; if it reads as
+marketing, the hazards paragraph is the first thing skimmed. It is set as a
+shop traveler instead — header block, participant id as a field, squared
+corners, one purple rule against the one section that must not be skimmed.
+
+Email constraints worth knowing before editing it: every style is inline
+(Gmail strips `<style>`), layout is tables (Windows Outlook renders through
+Word, which has no flexbox), there are no web fonts, and there are no images —
+most clients block remote images, so a logo would be a broken box on first
+open.
 
 ## Handling rules
 

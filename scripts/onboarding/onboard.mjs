@@ -41,6 +41,8 @@
  *   node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed]
  *   node scripts/onboarding/onboard.mjs <roster.json> --links        # print links, do nothing else
  *   node scripts/onboarding/onboard.mjs <roster.json> --email        # print ready-to-send emails
+ *   node scripts/onboarding/onboard.mjs <roster.json> --draft --commit  # leave them in Drafts
+ *   node scripts/onboarding/onboard.mjs <roster.json> --send --commit   # deliver them
  *   node scripts/onboarding/onboard.mjs <roster.json> --mark-signed <peopleId>
  *   node scripts/onboarding/onboard.mjs <roster.json> --set-email TDS-27-002:student=a@b.com
  *   node scripts/onboarding/onboard.mjs <roster.json> --set-start TDS-27-004=2026-10-01
@@ -53,11 +55,16 @@
  *   JOTFORM_API_KEY          Jotform API key (Settings → API)
  *   JOTFORM_FORM_SAMURAI     form id for the FRC packet
  *   JOTFORM_FORM_JEDI        form id for the FTC packet
+ *   MS_TENANT_ID             Entra directory (tenant) id  ─┐ only needed for
+ *   MS_CLIENT_ID             Entra application (client) id │ --draft/--send;
+ *   MS_CLIENT_SECRET         the secret Value, not its id  │ see graph-mail.mjs
+ *   MS_SENDER                mailbox to send as           ─┘
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { renderText, renderHtml } from './packet-email.mjs';
 
 // ---------------------------------------------------------------- config
 
@@ -75,6 +82,33 @@ const TEAMS = {
     formEnv: 'JOTFORM_FORM_SAMURAI',
     program: 'FIRST Robotics Competition',
     welcomeUrl: 'https://tiedyesamurai.org/welcome',
+    /**
+     * Copied on every packet email, so the coach responsible for a team sees
+     * their own families arrive. Empty for Samurai: the head coach is also
+     * MS_SENDER, and copying yourself on your own mail helps nobody.
+     */
+    cc: [],
+    /**
+     * Who the packet email is from and signed by. Per team, because each team
+     * has its own head coach — a family replying to their packet should reach
+     * the coach who runs their season, not whoever happens to run the script.
+     */
+    /**
+     * Whose Drafts a packet lands in. Null means MS_SENDER — whoever runs the
+     * script. Samurai's head coach is that person, so there is nothing to route.
+     */
+    mailbox: null,
+    signature: {
+      name: 'Steven Klass',
+      titles: [
+        'Founder & Executive Director, STEM+C',
+        'Head Coach, Tie Dye Samurai FRC Team 10933',
+      ],
+      org: 'STEM+C',
+      tagline: 'Real projects. Real mentors. Real engineers.',
+      email: 'steven@stemplusc.org',
+      phone: '(480) 225-1112',
+    },
     /**
      * Ten payments on the 1st, July through April, or the season in full.
      * A student joining mid-season owes the payments from their start month
@@ -97,6 +131,26 @@ const TEAMS = {
     formEnv: 'JOTFORM_FORM_JEDI',
     program: 'FIRST Tech Challenge',
     welcomeUrl: 'https://tiedyejedi.org/welcome',
+    /**
+     * Nobody extra is copied: the Jedi packets are meant to go out from the
+     * Jedi coach's own mailbox, so that coach is the sender rather than a cc.
+     */
+    cc: [],
+    /**
+     * Jedi packets are drafted into the Jedi head coach's own mailbox, so they
+     * go out from — and replies come back to — the coach running that season,
+     * not whoever happened to run the script. Reaching this mailbox requires
+     * the Graph access policy to cover it; see the README.
+     */
+    mailbox: 'rob@stemplusc.org',
+    signature: {
+      name: 'Robert Heaton',
+      titles: ['Head Coach, Tie Dye Jedi FTC Team 35811'],
+      org: 'STEM+C',
+      tagline: 'Real projects. Real mentors. Real engineers.',
+      email: 'rob@stemplusc.org',
+      phone: null,
+    },
     // FTC dues are not set for this season. Fill in the same shape as Samurai
     // when they are; the dues report skips the team while this is null.
     dues: null,
@@ -108,14 +162,6 @@ const SEASON = '27';
 
 /** Human-readable season, for the packet email. */
 const SEASON_LABEL = '2026–2027';
-
-/** Sign-off on the packet email. Update when the coach changes. */
-const SIGNATURE = [
-  'Steven Klass',
-  'Founder & Executive Director, STEM+C',
-  'Head Coach, Tie Dye Samurai — FRC Team 10933',
-  'steven@stemplusc.org',
-].join('\n');
 
 /**
  * Post a one-line welcome in the student channel when a family completes their
@@ -172,6 +218,9 @@ const commit = has('commit');
 const seedOnly = has('seed');
 const linksOnly = has('links');
 const emailOnly = has('email');
+const draftOnly = has('draft');
+const sendOnly = has('send');
+const resend = has('resend');
 const markSigned = val('mark-signed', null);
 const setEmail = val('set-email', null);
 const setStart = val('set-start', null);
@@ -190,6 +239,7 @@ const ledgerOnly = markSigned || setEmail || setStart || reserve || linkId;
 if (!rosterPath && !ledgerOnly) {
   console.error(
     'Usage: node scripts/onboarding/onboard.mjs <roster.json> [--commit] [--seed] [--links] [--email] [--mark-signed <peopleId>]\n' +
+      '       node scripts/onboarding/onboard.mjs <roster.json> --draft --commit [--resend]\n' +
       '       node scripts/onboarding/onboard.mjs --reserve "Alex Rivera" [--team samurai]\n' +
       '       node scripts/onboarding/onboard.mjs --link TDS-27-009=6801234'
   );
@@ -452,6 +502,12 @@ function packetLink({ formId, participantId, student, guardian, team }) {
 /**
  * The packet email, ready to send.
  *
+ * Returned as a list of blocks rather than a finished string, because this one
+ * message goes out two ways: as HTML that a family reads, and as plain text
+ * that `--email` prints. Two hand-written templates would drift the first time
+ * someone edited one and not the other, and the version a family reads is the
+ * one that must not be the stale one. packet-email.mjs renders both from this.
+ *
  * Lives here rather than in a doc so every family gets the same message and it
  * cannot drift from what the link actually does. Deliberately carries no dues
  * figures: those change per team and per season, and an email that quotes them
@@ -465,39 +521,74 @@ function packetEmail({ team, participantId, student, guardian, link }) {
 
   const subject = `Welcome to ${cfg.label} — your registration link (${SEASON_LABEL} season)`;
 
-  const body = `Hi ${parent},
+  const blocks = [
+    { type: 'p', text: `Hi ${parent},` },
+    {
+      type: 'p',
+      text: `Welcome to ${cfg.label}! We're glad to have ${kid} joining us for the ${SEASON_LABEL} ${cfg.program} season.`,
+    },
+    {
+      type: 'p',
+      text:
+        `Your registration link is below. It's already filled in with what we have on file, ` +
+        `so it should take about five minutes:`,
+    },
+    { type: 'cta', href: link, label: 'Open your registration' },
+    { type: 'eyebrow', text: 'A few notes before you start' },
+    {
+      type: 'bullets',
+      items: [
+        `A parent or guardian completes this, not the student — but your student does need to be with you ` +
+          `at the end to sign their own acknowledgment of our safety rules. Easiest to do it together in one sitting.`,
+        `The media permission is optional and doesn't affect ${kid}'s participation. Either answer is fine.`,
+        `Our Privacy Notice explains what we do with the information you provide: ${POLICIES.privacy}`,
+      ],
+    },
+    {
+      type: 'docs',
+      label: 'Before you sign',
+      intro: `Please read both documents before you sign them. They're linked in the form, and also here:`,
+      items: [
+        { name: 'Student & Family Team Agreement', url: POLICIES.teamAgreement },
+        {
+          name: 'Consent, Assumption of Risk, Release & Emergency Authorization',
+          url: POLICIES.consentRelease,
+        },
+      ],
+      note:
+        `The second one describes real hazards — power tools, machine-shop equipment, heavy robots, ` +
+        `travel — and it affects legal rights. It's worth ten minutes of your time.`,
+    },
+    {
+      type: 'p',
+      text:
+        `What happens next: once you've submitted, we'll make sure you and ${kid} are in our team Slack — ` +
+        `that's where schedules, announcements, and shop access details live. If you're already in there, ` +
+        `nothing changes; if not, you'll get an invitation.`,
+    },
+    {
+      type: 'p',
+      text:
+        `Everything else you need — meeting schedule, season timeline, dues, what to wear in the shop, ` +
+        `how to help — is here: ${cfg.welcomeUrl}`,
+    },
+    {
+      type: 'p',
+      text:
+        `Questions about anything, including dues, just reply to this email. We'd always rather answer ` +
+        `than have a family guess.`,
+    },
+    { type: 'p', text: `Welcome to the Tie Dye family.` },
+    { type: 'signoff', signature: cfg.signature },
+  ];
 
-Welcome to ${cfg.label}! We're glad to have ${kid} joining us for the ${SEASON_LABEL} ${cfg.program} season.
-
-Your registration link is below. It's already filled in with what we have on file, so it should take about five minutes:
-
-${link}
-
-A few notes before you start:
-
-- A parent or guardian completes this, not the student — but your student does need to be with you at the end to sign their own acknowledgment of our safety rules. Easiest to do it together in one sitting.
-
-- Please read the two documents before you sign them. They're linked in the form, and also here:
-  Student & Family Team Agreement: ${POLICIES.teamAgreement}
-  Consent, Assumption of Risk, Release & Emergency Authorization: ${POLICIES.consentRelease}
-
-- The second one describes real hazards — power tools, machine-shop equipment, heavy robots, travel — and it affects legal rights. It's worth ten minutes of your time.
-
-- The media permission is optional and doesn't affect ${kid}'s participation. Either answer is fine.
-
-- Our Privacy Notice explains what we do with the information you provide: ${POLICIES.privacy}
-
-What happens next: once you've submitted, we'll make sure you and ${kid} are in our team Slack — that's where schedules, announcements, and shop access details live. If you're already in there, nothing changes; if not, you'll get an invitation.
-
-Everything else you need — meeting schedule, season timeline, dues, what to wear in the shop, how to help — is here: ${cfg.welcomeUrl}
-
-Questions about anything, including dues, just reply to this email. We'd always rather answer than have a family guess.
-
-Welcome to the Tie Dye family.
-
-${SIGNATURE}`;
-
-  return { subject, body, to: guardian.email, participantId };
+  return {
+    subject,
+    body: renderText(blocks),
+    html: renderHtml(blocks, { participantId, subject }),
+    to: guardian.email,
+    participantId,
+  };
 }
 
 // ---------------------------------------------------------------- dues
@@ -831,6 +922,8 @@ for (const s of accepted) {
       team,
       firstAcceptedSeen: new Date().toISOString(),
       linkIssuedAt: null,
+      packetDraftedAt: null,
+      packetSentAt: null,
       signedAt: null,
       slack: { student: null, parent: null },
     };
@@ -942,6 +1035,121 @@ if (emailOnly) {
   }
   console.log(`\n${'='.repeat(72)}\n`);
   process.exit(0);
+}
+
+// --draft / --send: put the packet email in the mailbox, or deliver it.
+//
+// Both use exactly what --email prints. packetEmail() stays the single copy of
+// the message, so what a family receives cannot drift from what you reviewed.
+if (draftOnly || sendOnly) {
+  if (draftOnly && sendOnly) {
+    console.error('\n--draft and --send are two ways to do the same job; pick one.\n');
+    process.exit(1);
+  }
+  if (!formId) {
+    console.error(`\n${cfg.formEnv} is not set — cannot build packet links.\n`);
+    process.exit(1);
+  }
+  // A null signature means this team's head coach was never filled in. Sending
+  // anyway would sign their families' mail with another team's coach, so stop.
+  if (!cfg.signature) {
+    console.error(
+      `\n${cfg.label} has no coach signature set, so these would go out signed by\n` +
+        `the wrong person. Fill in \`signature\` for ${team} in TEAMS near the top of\n` +
+        `this file, then re-run. --email still prints them in the meantime.\n`
+    );
+    process.exit(1);
+  }
+
+  const { createDraft, sendMail, graphEnv } = await import('./graph-mail.mjs');
+  // A dry run creates nothing, so it must not demand credentials: previewing
+  // who would get mail is most useful *before* Graph is set up, not after.
+  const sender = commit ? graphEnv().sender : process.env.MS_SENDER || '(MS_SENDER not set)';
+  const mailbox = cfg.mailbox || sender;
+  const foreign = Boolean(cfg.mailbox) && cfg.mailbox.toLowerCase() !== sender.toLowerCase();
+
+  // Drafting into another coach's mailbox is the point: they read it and press
+  // send. Sending *as* them without their ever seeing it is a different act —
+  // their name on mail they never read, and replies landing on a conversation
+  // they did not know had started. Refuse it and let them press send.
+  if (sendOnly && foreign) {
+    console.error(
+      `\n${cfg.label} sends from ${cfg.mailbox}, which is not you.\n\n` +
+        `--send would put their name on mail they have never read. Use --draft:\n` +
+        `it leaves the packets in their Drafts and they press send.\n`
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `Mail:   ${sendOnly ? 'deliver' : 'draft'} into ${mailbox}` +
+      (foreign ? ` (signed ${cfg.signature.name}, not you)` : '') +
+      (cfg.cc.length ? `, cc ${cfg.cc.join(', ')}` : '') +
+      (commit ? '' : ' — dry run, nothing will be created') +
+      '\n'
+  );
+
+  let done = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    const { student, guardian } = people(s);
+    const who = `${entry.participantId} ${student.legalFirst} ${student.last}`;
+
+    if (!guardian.email) {
+      console.log(`  skip   ${who} — no guardian email in FIRST`);
+      skipped++;
+      continue;
+    }
+
+    // Steps 3–6 are documented as safe to repeat, so this path has to be too.
+    // Without this stamp a second run mails every family their packet twice.
+    const already = entry.packetSentAt || entry.packetDraftedAt;
+    if (already && !resend) {
+      const what = entry.packetSentAt ? 'sent' : 'drafted';
+      console.log(`  skip   ${who} — packet ${what} ${already.slice(0, 10)} (--resend to repeat)`);
+      skipped++;
+      continue;
+    }
+
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian, team });
+    const mail = packetEmail({ team, participantId: entry.participantId, student, guardian, link });
+
+    if (!commit) {
+      console.log(`  would ${sendOnly ? 'send ' : 'draft'} ${who} → ${mail.to}`);
+      continue;
+    }
+
+    try {
+      if (sendOnly) {
+        await sendMail({ mailbox, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        entry.packetSentAt = new Date().toISOString();
+        console.log(`  sent   ${who} → ${mail.to}`);
+      } else {
+        const draft = await createDraft({ mailbox, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        entry.packetDraftedAt = new Date().toISOString();
+        console.log(`  draft  ${who} → ${mail.to}`);
+        console.log(`         ${draft.webLink}`);
+      }
+      done++;
+      // Written per family rather than once at the end: if the run dies on
+      // family six, the five already mailed must not be mailed again.
+      saveState(state);
+    } catch (err) {
+      failed++;
+      console.log(`  FAIL   ${who} → ${mail.to}: ${err.message}`);
+    }
+  }
+
+  console.log(
+    commit
+      ? `\n${done} ${sendOnly ? 'sent' : 'drafted'}, ${skipped} skipped, ${failed} failed\n` +
+          (sendOnly || !done ? '' : `Review them in Drafts, then send.\n`)
+      : `\nDry run — pass --commit to ${sendOnly ? 'send' : 'create drafts'}.\n`
+  );
+  process.exit(failed ? 1 : 0);
 }
 
 // --links: print the packet links and stop. Useful for a mail merge.
