@@ -78,6 +78,18 @@ For the money columns alone, a further rule is worth having:
 |---|---|---|
 | `=$H$2:$H$5000` | `=$H2<0` | red text |
 
+## Still to migrate
+
+- [x] **Dues** — `Dues.m`, replaces `Dues Status`
+- [ ] **Cash Flow** — reads `Incomes!M`, `Incomes!O`, `Incomes!D`, `Incomes!K`
+- [ ] **Tax Purposes** — reads `Incomes!P`
+- [ ] **FRC Current Budget** — reads `Incomes!G`, `Incomes!H` (holds the chart)
+- [ ] **Sponsors** — reads `Incomes!D`
+
+Until Cash Flow and Tax Purposes are done there are two payment ledgers, and
+the old one is the incomplete one: Zeffy only, no Venmo, no Benevity. Cash Flow
+is stale rather than wrong-but-trusted, and should be read that way.
+
 ## Still on the old sheets
 
 `Cash Flow`, `Tax Purposes`, `FRC Current Budget` and `Sponsors` still read the
