@@ -45,18 +45,30 @@ let
         let s = [Start Date], c = Cap(_) in
         if s = null or c < s then 0 else Months(s, c) * Monthly, type number),
 
+    // #"..." because a field name containing punctuation is not a generalized
+    // identifier in M. Spaces are fine — [Paid to Date] works — but the slash
+    // in "Over / Under" is not, and the error just says "invalid identifier".
     Over   = Table.AddColumn(Owed, "Over / Under", each [Paid to Date] - [Owed to Date], type number),
-    Behind = Table.AddColumn(Over, "Months Behind", each if [Over / Under] < 0 then Number.Round(-[Over / Under] / Monthly, 1) else 0, type number),
+    Behind = Table.AddColumn(Over, "Months Behind", each if [#"Over / Under"] < 0 then Number.Round(-[#"Over / Under"] / Monthly, 1) else 0, type number),
 
+    // The id is bound to a name first on purpose. Written inline, the bare
+    // [Participant ID] inside the inner lambda reads as the outer row's field
+    // while sitting next to p[Participant ID], which is a trap for whoever
+    // edits this next.
     Last = Table.AddColumn(Behind, "Last Payment", each
-        let mine = Table.SelectRows(Attributed, (p) => p[Participant ID] = [Participant ID]) in
-        if Table.IsEmpty(mine) then null else List.Max(List.Transform(mine[Date], each try Date.From(_) otherwise null)), type date),
+        let
+            id   = [Participant ID],
+            mine = Table.SelectRows(Attributed, (p) => p[Participant ID] = id),
+            days = List.Transform(mine[Date], each try Date.From(_) otherwise null)
+        in
+            if Table.IsEmpty(mine) then null else List.Max(days), type date),
 
-    Days = Table.AddColumn(Last, "Days Since", each if [Last Payment] = null then null else Duration.Days([Last Payment] - Today) * -1, Int64.Type),
+    Days = Table.AddColumn(Last, "Days Since", each
+        if [Last Payment] = null then null else Duration.Days(Today - [Last Payment]), Int64.Type),
 
     Status = Table.AddColumn(Days, "Status", each
         if [Owed to Date] = 0 then "Not yet billed"
-        else if [Over / Under] >= 0 then "Current"
+        else if [#"Over / Under"] >= 0 then "Current"
         else if [Months Behind] <= 1 then "Watch"
         else if [Months Behind] <= 2 then "Behind"
         else "CRITICAL", type text),
@@ -67,7 +79,7 @@ let
     Action = Table.AddColumn(Status, "Action", each
         if [Owed to Date] = 0 then ""
         else if [Paid to Date] = 0 then "nothing recorded — check Venmo/cash"
-        else if [Over / Under] < 0 then "chase"
+        else if [#"Over / Under"] < 0 then "chase"
         else "", type text),
 
     Out = Table.SelectColumns(Action, {
