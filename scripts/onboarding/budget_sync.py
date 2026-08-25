@@ -60,6 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Reused rather than rewritten: these are already tested, and a second
 # implementation of "which student is this payment for" is exactly the kind of
 # duplication that lets two answers drift apart.
+from dues import months_inclusive  # noqa: E402
 from build_v2 import (  # noqa: E402
     ALIASES,
     END_DATES,
@@ -340,11 +341,18 @@ def new_zeffy_rows(students, seen_ids, zmap):
 
 
 def months_owed(start, end, today):
-    """Payments due by today for one student, counting the start month."""
+    """
+    Payments due by today for one student.
+
+    Defers to dues.months_inclusive so this script, dues_texts.py and the sync
+    report cannot disagree about whether the start month counts. It does — a
+    student joining on the 1st owes for that month — and being wrong here is
+    wrong by $215 per family.
+    """
     last = min(end or LAST_PAYMENT, LAST_PAYMENT, today)
-    if last < start:
+    if not start or last < start:
         return 0
-    return sum(1 for d in payment_dates() if start <= d <= last)
+    return months_inclusive(start, last)
 
 
 def build(students, income_rows):
