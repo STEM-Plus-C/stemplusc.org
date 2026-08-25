@@ -82,10 +82,34 @@ let
         else if [#"Over / Under"] < 0 then "chase"
         else "", type text),
 
-    Out = Table.SelectColumns(Action, {
+    Picked = Table.SelectColumns(Action, {
         "Participant ID", "Student", "Start Date", "End Date", "FIRST",
         "Owed to Date", "Paid to Date", "Over / Under", "Months Behind",
         "Last Payment", "Days Since", "Status", "Action"
-    })
+    }),
+
+    // Currency.Type rather than type number: it is still a number, but Excel
+    // loads it with a currency format instead of a bare integer, so the sheet
+    // reads as money without anyone formatting it by hand. Formatting applied
+    // in Excel survives a refresh; types set here decide what it starts as.
+    Typed2 = Table.TransformColumnTypes(Picked, {
+        {"Participant ID", type text},
+        {"Student",        type text},
+        {"Start Date",     type date},
+        {"End Date",       type date},
+        {"FIRST",          type text},
+        {"Owed to Date",   Currency.Type},
+        {"Paid to Date",   Currency.Type},
+        {"Over / Under",   Currency.Type},
+        {"Months Behind",  type number},
+        {"Last Payment",   type date},
+        {"Days Since",     Int64.Type},
+        {"Status",         type text},
+        {"Action",         type text}
+    }),
+
+    // Worst first. Whoever is furthest behind is the row that needs reading,
+    // and sorting by id buries them wherever the alphabet happens to put them.
+    Out = Table.Sort(Typed2, {{"Over / Under", Order.Ascending}, {"Student", Order.Ascending}})
 in
     Out
