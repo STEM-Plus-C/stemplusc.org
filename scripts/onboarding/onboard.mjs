@@ -998,6 +998,54 @@ console.log(
     : 'Mode:   dry run — nothing will change (pass --commit to act)\n'
 );
 
+/**
+ * Someone whose id was reserved before they registered with FIRST.
+ *
+ * Matched on the name the reservation was made under, which is the only thing
+ * the two records share — a reserved entry has no PeopleID by definition.
+ */
+function reservationFor(s) {
+  const norm = (n) => String(n || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+  const full = norm(`${s.name_first ?? ''} ${s.name_last ?? ''}`);
+  if (!full) return null;
+  const hit = Object.entries(state.participants).find(
+    ([, e]) => e.reservedName && norm(e.reservedName) === full
+  );
+  return hit ? { key: hit[0], entry: hit[1] } : null;
+}
+
+// A student who was reserved and has now registered must be linked, not
+// seeded. Seeding mints the next id and leaves the reserved one dangling —
+// along with whatever payments and history were attached to it. The reservation
+// exists precisely so that money survives their registration, and losing it
+// here would be silent.
+const needLinking = [];
+for (const s of accepted) {
+  const key = String(s.PeopleID);
+  if (state.participants[key]) continue;
+  const res = reservationFor(s);
+  if (res) {
+    needLinking.push({ s, ...res });
+  }
+}
+
+if (needLinking.length) {
+  console.log(`\nAlready reserved — link, do not seed (${needLinking.length}):`);
+  for (const { s, entry } of needLinking) {
+    console.log(
+      `  ${entry.participantId}  ${entry.reservedName}  has registered as PeopleID ${s.PeopleID}`
+    );
+    console.log(
+      `    node scripts/onboarding/onboard.mjs --link ${entry.participantId}=${s.PeopleID}`
+    );
+  }
+  console.log(
+    `\nSeeding them instead would issue a second id and orphan the first, along\n` +
+      `with any payments already recorded against it.\n`
+  );
+  process.exit(1);
+}
+
 // Seed ledger entries for everyone accepted.
 for (const s of accepted) {
   const key = String(s.PeopleID);
