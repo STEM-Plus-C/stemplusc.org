@@ -271,7 +271,19 @@ def gather(args):
 def new_zeffy_rows(students, seen_ids, zmap):
     """Zeffy payments not already in the ledger, attributed to a participant id."""
     by_name = {norm(s["name"]): s for s in students.values()}
-    payments, subs = fetch_zeffy("samurai")
+    # Zeffy carries whatever a parent typed into the form, which is not always
+    # what FIRST calls the student — "Arion Takas" and "Ari Takas" are one boy.
+    # The aliases are declared in roster-overrides.json rather than inferred:
+    # matching on last-name-plus-initial would also merge two real siblings,
+    # and declared beats inferred when the thing being merged is money.
+    for alias, real in ALIASES.items():
+        target = by_name.get(norm(real))
+        if target:
+            by_name.setdefault(norm(alias), target)
+    # Third value is the other team's income: both teams take money through one
+    # Zeffy account, so the campaign is the only thing separating Samurai's
+    # money from the Jedi's. Reported rather than dropped silently.
+    payments, subs, other_team = fetch_zeffy("samurai")
     rows, unmatched, skipped = [], [], 0
 
     for p in sorted(payments, key=lambda p: p["created"]):
@@ -321,7 +333,7 @@ def new_zeffy_rows(students, seen_ids, zmap):
                     note,
                 ]
             )
-    return rows, unmatched, skipped, subs
+    return rows, unmatched, skipped, subs, other_team
 
 
 # ------------------------------------------------------------------ write
@@ -436,10 +448,10 @@ def main():
             seeded += 1
         seen = zeffy_ids_present(income_rows)
 
-    added, unmatched, skipped, subs = [], [], 0, {}
+    added, unmatched, skipped, subs, other_team = [], [], 0, {}, {}
     if args.zeffy:
         zmap = read_zeffy_map(existing_wb or (openpyxl.load_workbook(args.seed_from) if args.seed_from else None))
-        added, unmatched, skipped, subs = new_zeffy_rows(students, seen, zmap or {})
+        added, unmatched, skipped, subs, other_team = new_zeffy_rows(students, seen, zmap or {})
 
     print(f"\nData workbook: {out}")
     print(f"Mode:          {'COMMIT' if args.commit else 'dry run — nothing will be written'}\n")
@@ -497,6 +509,10 @@ def main():
     block("Billed but not registered with FIRST", sorted(billed_not_reg))
     block("Registered but not in the dues ledger", sorted(reg_not_billed))
     block("Owes money, nothing recorded — check for a Venmo or cash payment", sorted(nothing_at_all))
+    if other_team:
+        block("Excluded — the other team's Zeffy income, not this budget",
+              [f"${a:>9,.2f}  {t}" for t, a in sorted(other_team.items(), key=lambda kv: -kv[1])])
+
     if unmatched:
         block("Payments that could not be attributed", [f"{w}  ${a:,.2f}  {n!r}" for w, n, a in unmatched[:12]])
         print("    These are in the ledger with no id — visible, counted against nobody.")
