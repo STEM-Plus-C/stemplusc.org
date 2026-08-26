@@ -978,6 +978,14 @@ if (linkId) {
   delete entry.reservedName;
   delete entry.reservedAt;
   entry.linkedAt = new Date().toISOString().slice(0, 10);
+  // A reservation carries only an id and a name. Fill in the rest now rather
+  // than leaving a half-formed entry for the next run to trip over.
+  entry.firstAcceptedSeen ??= new Date().toISOString();
+  entry.linkIssuedAt ??= null;
+  entry.packetDraftedAt ??= null;
+  entry.packetSentAt ??= null;
+  entry.signedAt ??= null;
+  entry.slack ??= { student: null, parent: null };
   state.participants[peopleId] = entry;
   delete state.participants[oldKey];
   saveState(state);
@@ -1046,7 +1054,28 @@ if (needLinking.length) {
   process.exit(1);
 }
 
-// Seed ledger entries for everyone accepted.
+/**
+ * The shape every participant entry has, whatever route it arrived by.
+ *
+ * A student can reach the ledger two ways: seeded from a FIRST roster, or
+ * reserved by name and later linked. --link re-keys a reserved entry to the
+ * PeopleID, and the seed loop below then skips it because the key exists — so
+ * a linked student used to arrive with no slack object at all, and the run
+ * died the moment they signed and the Slack step touched it.
+ *
+ * Applied to every entry on every run, so an entry written before a field
+ * existed grows it rather than crashing whoever reads it next.
+ */
+const ENTRY_DEFAULTS = () => ({
+  linkIssuedAt: null,
+  packetDraftedAt: null,
+  packetSentAt: null,
+  signedAt: null,
+  slack: { student: null, parent: null },
+});
+
+// Seed ledger entries for everyone accepted, and backfill anyone missing a
+// field — including students who arrived through --link.
 for (const s of accepted) {
   const key = String(s.PeopleID);
   if (!state.participants[key]) {
@@ -1054,12 +1083,15 @@ for (const s of accepted) {
       participantId: nextParticipantId(state, team),
       team,
       firstAcceptedSeen: new Date().toISOString(),
-      linkIssuedAt: null,
-      packetDraftedAt: null,
-      packetSentAt: null,
-      signedAt: null,
-      slack: { student: null, parent: null },
+      ...ENTRY_DEFAULTS(),
     };
+  }
+  const entry = state.participants[key];
+  entry.firstAcceptedSeen ??= entry.linkedAt
+    ? new Date(entry.linkedAt).toISOString()
+    : new Date().toISOString();
+  for (const [k, v] of Object.entries(ENTRY_DEFAULTS())) {
+    entry[k] ??= v;
   }
 }
 
