@@ -5,7 +5,7 @@ Keep the budget's data workbook in step with the onboarding ledger and Zeffy.
 ## Why there are two workbooks
 
 The budget used to be one file doing two jobs, and the second job kept the
-first one from being automated. The analysis workbook holds a chart, and
+first one from being automated. `FRC Budget 2026-2027.xlsx` holds a chart, and
 openpyxl deletes charts when it rewrites a workbook — which is why add_sheet.py
 exists at all, 184 lines of zip surgery to avoid destroying one picture.
 
@@ -13,7 +13,7 @@ So the data moves to a workbook with no chart in it:
 
     FRC Data 2026-2027.xlsx     Roster, Incomes, Schedule. Written by this
                                 script. Nothing decorative, nothing to lose.
-    The analysis workbook       Charts, dues analysis, expense buckets. Read
+    FRC Budget 2026-2027.xlsx   Charts, dues analysis, expense buckets. Read
                                 from the data workbook through Power Query.
                                 Owned by a person; this script never opens it.
 

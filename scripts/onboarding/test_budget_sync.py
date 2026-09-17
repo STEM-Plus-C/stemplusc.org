@@ -261,12 +261,46 @@ def test_the_script_never_names_the_analysis_workbook():
     """
     An invariant guard, not a behavioural test.
 
-    openpyxl destroys charts on write, and the chart lives in the analysis
-    workbook. Nothing in this script should reference that file at all. If
-    someone adds a reference, this fires and they have to think about it.
+    A behavioural test would need to actually load the analysis workbook to
+    prove this script never touches it, and that workbook holds roster data
+    that cannot live in a public repo. So this checks the one thing that can
+    be checked without one: no *code path* names the file.
+
+    Parsed with ast rather than grepped as raw text, because the filename
+    belongs in the documentation — the module docstring's two-file table
+    exists specifically to say which file is which — and only a reference
+    reachable from running code (a string literal outside a docstring) is
+    the defect this guards against. Docstrings are collected first and
+    excluded; comments never appear in the AST at all, so they are exempt
+    automatically, which is correct for the same reason.
     """
+    import ast
+
     src = (Path(__file__).resolve().parent / "budget_sync.py").read_text()
-    assert "FRC Budget" not in src, "budget_sync.py must not reference the analysis workbook"
+    tree = ast.parse(src)
+
+    docstring_ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            doc_node = node.body[0] if node.body else None
+            if (
+                isinstance(doc_node, ast.Expr)
+                and isinstance(doc_node.value, ast.Constant)
+                and isinstance(doc_node.value.value, str)
+            ):
+                docstring_ids.add(id(doc_node.value))
+
+    offenders = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and "FRC Budget" in node.value
+        and id(node) not in docstring_ids
+    ]
+    assert not offenders, [
+        f"line {n.lineno}: {n.value!r}" for n in offenders
+    ]
 
 
 def main():
