@@ -128,14 +128,13 @@ is stale rather than wrong-but-trusted, and should be read that way.
 
 ## Still on the old sheets
 
-`Cash Flow`, `Tax Purposes`, `FRC Current Budget` and `Sponsors` still read the
-**old** `Incomes` sheet inside the analysis workbook — not the data workbook:
+`Cash Flow`, `Tax Purposes` and `Sponsors` still read the **old** `Incomes`
+sheet inside the analysis workbook — not the data workbook:
 
 | Sheet | Reads |
 |---|---|
 | Cash Flow | `Incomes!M`, `Incomes!O`, `Incomes!D`, `Incomes!K` |
 | Tax Purposes | `Incomes!P` |
-| FRC Current Budget | `Incomes!G`, `Incomes!H` |
 | Sponsors | `Incomes!D` |
 
 So there are two payment ledgers until those are migrated, and the old one is
