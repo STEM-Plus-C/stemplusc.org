@@ -204,10 +204,72 @@ def overwide_expense_rows(ws):
     return out
 
 
+def parse_amount(value):
+    """
+    An Amount cell as a number: 0.0 when the cell is empty, None when it is
+    not a number at all.
+
+    Amounts are hand-typed from receipts, and `float(cell or 0)` died on what
+    people actually type -- '$1,200.00' pasted off a receipt, 'n/a', a cell
+    holding only spaces. The traceback landed after the Roster and Incomes
+    lines and before any expense report, drift report, missing-id report or
+    refusal, and on a --commit run after the backup had already been taken.
+    It also took the *income* sync down with it: until Expenses left
+    PRESERVED nothing read that sheet, so one stray cell on it could not
+    stop a sync that had always worked, and then it could.
+
+    Deliberately not lenient: '$1,200.00' is not read as 1200. build() writes
+    the value back verbatim, so Excel and Power Query would still see text in
+    that cell and `SUM(Expenses[Amount])` on the front page would still skip
+    it. Parsing it here would make this script's total right and the front
+    page's total wrong -- two totals disagreeing about the same ledger, which
+    is worse than one total that says which cell it cannot read.
+
+    An empty or whitespace-only cell is not a failure. It is the blank that
+    `or 0` has always counted as zero, and a cursor landing in a cell is not
+    a number someone meant to type.
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def unreadable_amount_rows(ws):
+    """
+    Sheet rows whose Amount is not a number, so no total can include them.
+
+    Takes the worksheet for the same reason overwide_expense_rows does: the
+    report has to name the row a person must go and fix, and read_expenses
+    has already dropped the blank rows, so its indices no longer name sheet
+    rows. Shares parse_amount with the total in expense_report so the list
+    and the total cannot disagree about which rows were counted.
+    """
+    out = []
+    for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        if not any(v not in (None, "") for v in row):
+            continue
+        amount = row[3] if len(row) > 3 else None
+        if parse_amount(amount) is None:
+            out.append(i)
+    return out
+
+
 def category_counts(rows):
-    """Distinct categories and how many rows use each. Blanks are not a category."""
+    """
+    Distinct categories and how many rows use each. Blanks are not a category.
+
+    str() before .strip() because Category is hand-typed and a bare number is
+    a plausible thing to type into it -- '2026' arrives as an int, and
+    int.strip() does not exist, so the whole run died on one cell. Same
+    coercion, for the same reason, as norm_category() in build_v2.
+    """
     return Counter(
-        (r[2] or "").strip() for r in rows if (r[2] or "").strip()
+        str(r[2] or "").strip() for r in rows if str(r[2] or "").strip()
     )
 
 
@@ -229,19 +291,25 @@ def category_variants(counts):
     ]
 
 
-def expense_report(expense_rows, overwide=()):
+def expense_report(expense_rows, overwide=(), unreadable=()):
     """
     What the expense ledger holds right now, as lines to print.
 
     Returned rather than printed so it can be asserted without capturing
     stdout. Says nothing it does not have to: a clean ledger produces one
-    line. `overwide` is a parameter rather than a call to
-    overwide_expense_rows() because that function needs the worksheet, not
-    these already-parsed rows -- this stays a pure function over data, so its
-    tests need no workbook. main() supplies it from the sheet it has open.
+    line. `overwide` and `unreadable` are parameters rather than calls to
+    overwide_expense_rows() and unreadable_amount_rows() because those need
+    the worksheet, not these already-parsed rows -- this stays a pure
+    function over data, so its tests need no workbook. main() supplies both
+    from the sheet it has open.
     """
-    total = sum(float(r[3] or 0) for r in expense_rows)
-    lines = [f"  Expenses  {len(expense_rows)} row(s), ${total:,.2f}"]
+    amounts = [parse_amount(r[3]) for r in expense_rows]
+    total = sum(a for a in amounts if a is not None)
+    # The count of rows that were left out is on the total line itself, not
+    # only in the block below, because a short total read on its own is the
+    # failure this is guarding against.
+    short = f" — {len(unreadable)} row(s) not counted, see below" if unreadable else ""
+    lines = [f"  Expenses  {len(expense_rows)} row(s), ${total:,.2f}{short}"]
 
     counts = category_counts(expense_rows)
     if counts:
@@ -260,6 +328,14 @@ def expense_report(expense_rows, overwide=()):
             lines.append("    " + " / ".join(f"{name!r} ({n})" for name, n in group))
         lines.append("    Standardise on the first of each and re-run; the dropdown")
         lines.append("    follows what is actually used.")
+
+    if unreadable:
+        shown = ", ".join(str(i) for i in unreadable[:10])
+        lines.append(f"\n  {len(unreadable)} expense row(s) have an Amount that is not a "
+                     f"number: row {shown}")
+        lines.append("    They are not in the total above, so it is short by whatever")
+        lines.append("    they say. Type the amount as a plain number: a '$', a comma or")
+        lines.append("    a word makes the cell text, which Excel's SUM skips as well.")
 
     if overwide:
         shown = ", ".join(str(i) for i in overwide[:10])
@@ -720,6 +796,13 @@ def main():
         if existing_wb and "Expenses" in existing_wb.sheetnames
         else []
     )
+    # Same reason, same place: the report has to name the sheet row someone
+    # has to go and retype, and only the worksheet knows those numbers.
+    unreadable = (
+        unreadable_amount_rows(existing_wb["Expenses"])
+        if existing_wb and "Expenses" in existing_wb.sheetnames
+        else []
+    )
     seen = zeffy_ids_present(income_rows)
 
     # First build with --from: bring v1's payment history across, once.
@@ -756,7 +839,7 @@ def main():
     if hand:
         print(f"            {len(hand)} hand-entered (no Zeffy id) — never rewritten")
 
-    for line in expense_report(expense_rows, overwide):
+    for line in expense_report(expense_rows, overwide, unreadable):
         print(line)
 
     # ── who looks wrong ─────────────────────────────────────────────────────
@@ -823,6 +906,18 @@ def main():
     if overwide:
         print(f"\nRefusing to write: {len(overwide)} expense row(s) carry columns "
               f"the spec would drop.\n")
+        sys.exit(1)
+
+    # Refused rather than warned, for the same reason one step removed. The
+    # row itself survives the write — nothing a person typed is lost — but it
+    # lands back in the sheet as text, so `SUM(Expenses[Amount])` on the
+    # analysis workbook's front page skips it exactly as the total above did.
+    # The visible result is a plausible-looking total that is short, in the
+    # one place nobody re-adds by hand. That is the silent failure; the report
+    # above has already named the rows, so the fix is a cell, not a flag.
+    if unreadable:
+        print(f"\nRefusing to write: {len(unreadable)} expense row(s) have an Amount "
+              f"that is not a number.\n")
         sys.exit(1)
 
     v1_refusal = v1_expenses_refusal(args.seed_from, expense_rows)
