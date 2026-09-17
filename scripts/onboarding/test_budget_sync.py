@@ -173,6 +173,89 @@ def test_category_variants_groups_spellings_and_ignores_clean_ones():
     assert groups[0][0] == ("Robot parts", 18), "most-used spelling leads"
 
 
+@test
+def test_expense_report_states_total_categories_and_drift():
+    rows = [
+        [date(2026, 8, 1), "Acme Parts", "Robot parts", 100.0, "", "", "", ""],
+        [date(2026, 8, 2), "Bolt Supply", "robot parts", 50.5, "", "", "", ""],
+        [date(2026, 8, 3), "Cog Co", "Tools", 20.0, "", "", "", ""],
+    ]
+    text = "\n".join(bs.expense_report(rows))
+    assert "3 row(s)" in text, text
+    assert "$170.50" in text, text
+    assert "2 distinct" in text, "'Robot parts' and 'robot parts' are two spellings, not one"
+    assert "Possible duplicates" in text, text
+    assert "'Robot parts' (1)" in text and "'robot parts' (1)" in text, text
+
+
+@test
+def test_expense_report_is_quiet_when_there_is_nothing_to_say():
+    text = "\n".join(bs.expense_report([]))
+    assert "0 row(s)" in text, text
+    assert "Possible duplicates" not in text
+    assert "Categories" not in text
+
+
+@test
+def test_expense_report_flags_rows_wider_than_the_spec():
+    # overwide_expense_rows reads the worksheet, not expense_rows (see its
+    # docstring), so expense_report takes the result as a parameter rather
+    # than recomputing it -- callers pass in the physical sheet row numbers
+    # they already have.
+    wide = [date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", "", "stray"]
+    text = "\n".join(bs.expense_report([wide], overwide=[2]))
+    assert "more columns than the spec" in text, text
+    assert "row 2" in text, text
+
+
+@test
+def test_build_writes_expense_number_formats():
+    """
+    A review finding: deleting both .number_format assignments in build()'s
+    Expenses block leaves every other test green, yet formats are half the
+    stated reason Expenses graduated out of PRESERVED. Pin them down.
+    """
+    rows = [[date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", ""]]
+    wb = bs.build({}, [], rows)
+    ws = wb["Expenses"]
+    assert ws.cell(2, 1).number_format == "yyyy-mm-dd", ws.cell(2, 1).number_format
+    assert ws.cell(2, 4).number_format == '"$"#,##0.00', ws.cell(2, 4).number_format
+
+
+@test
+def test_refuses_a_first_build_that_would_drop_v1_expenses():
+    """
+    Removing Expenses from PRESERVED broke the --from seed path: on a first
+    build `out` does not exist, so expense_rows is empty and v1's hand-typed
+    expense rows would land nowhere, silently -- asymmetric with Incomes,
+    which has an explicit seeding block. There is no seed block for
+    Expenses (the live sheet's column shape is unknown), so the only correct
+    move is to refuse and point at --dump-sheet.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        ws = wb.create_sheet("Expenses")
+        ws.append([name for name, _width in EXPENSE_COLS])
+        ws.append([date(2026, 8, 1), "Acme Parts", "Robot parts", 100.0, "", "", "", ""])
+        v1_path = str(Path(td) / "v1.xlsx")
+        wb.save(v1_path)
+
+        refusal = bs.v1_expenses_refusal(v1_path, [])
+        text = "\n".join(refusal)
+        assert "1 expense row" in text, text
+        assert "this build would drop" in text, text
+        assert "--dump-sheet Expenses" in text, text
+        assert v1_path in text, text
+
+        # Not a first build -- expense_rows already has something -- so
+        # there is nothing to silently drop.
+        already_has_rows = [[date(2026, 8, 1), "Vendor", "Cat", 1.0, "", "", "", ""]]
+        assert bs.v1_expenses_refusal(v1_path, already_has_rows) == []
+        # No --from at all: nothing to seed from, nothing to refuse.
+        assert bs.v1_expenses_refusal(None, []) == []
+
+
 def cell_equal(before, after):
     """
     Compare a written cell with the one read back.

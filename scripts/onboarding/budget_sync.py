@@ -229,6 +229,50 @@ def category_variants(counts):
     ]
 
 
+def expense_report(expense_rows, overwide=()):
+    """
+    What the expense ledger holds right now, as lines to print.
+
+    Returned rather than printed so it can be asserted without capturing
+    stdout. Says nothing it does not have to: a clean ledger produces one
+    line. `overwide` is a parameter rather than a call to
+    overwide_expense_rows() because that function needs the worksheet, not
+    these already-parsed rows -- this stays a pure function over data, so its
+    tests need no workbook. main() supplies it from the sheet it has open.
+    """
+    total = sum(float(r[3] or 0) for r in expense_rows)
+    lines = [f"  Expenses  {len(expense_rows)} row(s), ${total:,.2f}"]
+
+    counts = category_counts(expense_rows)
+    if counts:
+        # Distinct counts normalised spellings, not raw ones: "Robot parts"
+        # and "robot parts" are one category that drifted, and the point of
+        # this line is how many real buckets there are, not how many ways
+        # they were typed. The per-line breakdown below still lists every
+        # spelling separately -- that detail is what the duplicates section
+        # below needs.
+        distinct = len({norm_category(name) for name in counts})
+        lines.append(f"\n  Categories ({distinct} distinct, {sum(counts.values())} rows):")
+        for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold())):
+            lines.append(f"    {n:>4}  {name}")
+
+    variants = category_variants(counts)
+    if variants:
+        lines.append("\n  Possible duplicates — one category, several spellings:")
+        for group in variants:
+            lines.append("    " + " / ".join(f"{name!r} ({n})" for name, n in group))
+        lines.append("    Standardise on the first of each and re-run; the dropdown")
+        lines.append("    follows what is actually used.")
+
+    if overwide:
+        shown = ", ".join(str(i) for i in overwide[:10])
+        lines.append(f"\n  {len(overwide)} expense row(s) have more columns than the spec "
+                     f"({len(EXPENSE_COLS)}): row {shown}")
+        lines.append("    Those values are dropped on write. Move them into Notes, or")
+        lines.append("    widen EXPENSE_COLS, before committing.")
+    return lines
+
+
 # ----------------------------------------------------------------- students
 
 
@@ -592,6 +636,38 @@ def dump_sheet(path, name, limit=8):
         wb.close()
 
 
+def v1_expenses_refusal(seed_from, expense_rows):
+    """
+    Lines refusing a first build that would silently drop v1's expenses, or
+    [] when there is nothing to refuse.
+
+    Expenses came out of PRESERVED so that build() could write real formats
+    and a real dropdown instead of a values-only copy -- but that also means
+    a first build's expense rows come only from read_expenses(out), and on a
+    first build `out` does not exist yet, so they are empty. Incomes has an
+    explicit seeding block for exactly this situation; Expenses does not,
+    because the live sheet's column shape is not established (see
+    dump_sheet's docstring) and guessing a mapping here would be an
+    improvisation, not a migration. So when v1 actually holds expense rows
+    and this build has none, refuse instead of writing an Expenses sheet
+    that quietly has none of them either.
+    """
+    if not seed_from or expense_rows:
+        return []
+    v1 = openpyxl.load_workbook(seed_from, data_only=True)
+    if "Expenses" not in v1.sheetnames:
+        return []
+    n = max(0, v1["Expenses"].max_row - 1)
+    if not n:
+        return []
+    return [
+        f"\nRefusing to write: {seed_from} carries {n} expense row(s) that "
+        "this build would drop.\n",
+        "    Look at their real shape before deciding how to carry them across:",
+        f'    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses --out "{seed_from}"\n',
+    ]
+
+
 # ------------------------------------------------------------------- main
 
 
@@ -619,10 +695,16 @@ def main():
 
     existing_wb = openpyxl.load_workbook(out, data_only=True) if out.exists() else None
     income_rows = read_incomes(existing_wb) if existing_wb else []
-    # Carried through as-is. Ingesting *new* expenses (receipts, a Zeffy-style
-    # feed) is not this script's job yet — that is Task 5 — so today's run
-    # just has to stop clobbering what is already on the sheet.
     expense_rows = read_expenses(existing_wb) if existing_wb else []
+    # Computed here, where the worksheet is in hand: overwide_expense_rows
+    # needs the actual sheet, not expense_rows, which has already dropped
+    # blank rows and padded everything to EXPENSE_COLS width -- a length
+    # check on it would flag nothing, or (padded) everything.
+    overwide = (
+        overwide_expense_rows(existing_wb["Expenses"])
+        if existing_wb and "Expenses" in existing_wb.sheetnames
+        else []
+    )
     seen = zeffy_ids_present(income_rows)
 
     # First build with --from: bring v1's payment history across, once.
@@ -658,6 +740,9 @@ def main():
     hand = [r for r in income_rows if not r[5]]
     if hand:
         print(f"            {len(hand)} hand-entered (no Zeffy id) — never rewritten")
+
+    for line in expense_report(expense_rows, overwide):
+        print(line)
 
     # ── who looks wrong ─────────────────────────────────────────────────────
     today = date.today()
@@ -714,6 +799,21 @@ def main():
 
     if unreserved:
         print(f"\nRefusing to write: {len(unreserved)} student(s) have no participant id.\n")
+        sys.exit(1)
+
+    # Refuse rather than warn, for the same reason the missing-id case
+    # refuses: the failure is silent. A value in column I is simply gone
+    # after the next sync, and nobody reviews a sheet they believe a script
+    # maintains.
+    if overwide:
+        print(f"\nRefusing to write: {len(overwide)} expense row(s) carry columns "
+              f"the spec would drop.\n")
+        sys.exit(1)
+
+    v1_refusal = v1_expenses_refusal(args.seed_from, expense_rows)
+    if v1_refusal:
+        for line in v1_refusal:
+            print(line)
         sys.exit(1)
 
     if not args.commit:
