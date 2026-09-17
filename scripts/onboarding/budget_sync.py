@@ -64,6 +64,7 @@ from dues import months_inclusive  # noqa: E402
 from build_v2 import (  # noqa: E402
     ALIASES,
     END_DATES,
+    EXPENSE_COLS,
     FIRST_PAYMENT,
     INCOME_COLS,
     LAST_PAYMENT,
@@ -417,6 +418,44 @@ def carry_over(wb, source):
     return done
 
 
+def dump_sheet(path, name, limit=8):
+    """
+    Print a sheet's header and first rows. Reads only; writes nothing.
+
+    This exists because the live workbook cannot be inspected from the machine
+    the script is written on, and the Expenses sheet has only ever been copied
+    blindly by `PRESERVED`. Guessing its shape and writing a migration against
+    the guess is how you destroy the rows you were trying to keep.
+    """
+    if not path.exists():
+        sys.exit(f"\nNo workbook at {path}\n")
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    try:
+        print(f"\n{path}")
+        print(f"Sheets: {', '.join(wb.sheetnames)}\n")
+        if name not in wb.sheetnames:
+            sys.exit(f"No sheet named {name!r}.\n")
+        rows = []
+        for row in wb[name].iter_rows(values_only=True):
+            rows.append(row)
+            if len(rows) > limit:
+                break
+        if not rows:
+            print(f"{name} is empty.\n")
+            return
+        print(f"{name} — header ({len(rows[0])} columns):")
+        for i, value in enumerate(rows[0], start=1):
+            print(f"  {i:>2}  {value!r}")
+        body = rows[1:]
+        if body:
+            print(f"\nFirst {len(body)} data row(s):")
+            for row in body:
+                print("  " + " | ".join("" if v is None else str(v)[:18] for v in row))
+        print()
+    finally:
+        wb.close()
+
+
 # ------------------------------------------------------------------- main
 
 
@@ -428,9 +467,16 @@ def main():
     ap.add_argument("--zeffy", action="store_true", help="pull new payments from the Zeffy API")
     ap.add_argument("--out", default=str(DATA_BOOK))
     ap.add_argument("--commit", action="store_true", help="write; otherwise dry run")
+    ap.add_argument("--dump-sheet", metavar="NAME",
+                    help="print a sheet's shape and exit; reads only, writes nothing")
     args = ap.parse_args()
 
     out = Path(args.out)
+    # Before gather(), which needs a roster and exits without one. Inspecting a
+    # workbook must not require knowing who is on the team.
+    if args.dump_sheet:
+        dump_sheet(out, args.dump_sheet)
+        return
     students = gather(args)
     if not students:
         sys.exit("\nNo students found. Pass --roster-csv, or --from on the first build.\n")

@@ -386,6 +386,22 @@ INCOME_COLS = [
     ("Notes", 24),
 ]
 
+# Expense ID mirrors Incomes' Zeffy Payment ID: blank means a person typed
+# the row, filled means a script did. Nothing fills it yet — it exists now
+# because it is one column today and a retrofit across hundreds of rows
+# later. Receipt is the tie to evidence: a 501(c)(3) expense that cannot be
+# traced to an invoice is a problem at audit.
+EXPENSE_COLS = [
+    ("Date", 12),
+    ("Vendor", 22),
+    ("Category", 18),
+    ("Amount", 11),
+    ("Paid By", 14),
+    ("Receipt", 22),
+    ("Expense ID", 38),
+    ("Notes", 24),
+]
+
 DUES_COLS = [
     ("Participant ID", 14),
     ("Student", 22),
