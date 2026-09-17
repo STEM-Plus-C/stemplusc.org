@@ -137,6 +137,42 @@ def test_overwide_rows_are_detected():
         assert bs.overwide_expense_rows(wb["Expenses"]) == []
 
 
+@test
+def test_norm_category_collapses_case_and_spacing_only():
+    from build_v2 import norm_category
+    assert norm_category("Robot parts") == norm_category("robot parts")
+    assert norm_category("Robot  Parts") == norm_category("Robot Parts")
+    assert norm_category("  Tools ") == "tools"
+    assert norm_category(None) == ""
+    # norm() splits on the first hyphen, which would truncate this to 'pre'.
+    # A category is not a name and must not be treated like one.
+    assert norm_category("Pre-season build") == "pre-season build"
+    assert norm_category("Travel") != norm_category("Tools")
+
+
+@test
+def test_category_counts_tallies_non_blank_categories():
+    rows = [
+        [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "", ""],
+        [date(2026, 8, 2), "Bolt Supply", "Robot parts", 20.0, "", "", "", ""],
+        [date(2026, 8, 3), "Cog Co", "Tools", 30.0, "", "", "", ""],
+        [date(2026, 8, 4), "Dial Ltd", "", 40.0, "", "", "", ""],
+        [date(2026, 8, 5), "Edge Inc", "   ", 50.0, "", "", "", ""],
+    ]
+    counts = bs.category_counts(rows)
+    assert dict(counts) == {"Robot parts": 2, "Tools": 1}, dict(counts)
+
+
+@test
+def test_category_variants_groups_spellings_and_ignores_clean_ones():
+    from collections import Counter
+    counts = Counter({"Robot parts": 18, "robot parts": 2, "Robot Parts": 1, "Travel": 7})
+    groups = bs.category_variants(counts)
+    assert len(groups) == 1, groups
+    assert [name for name, _n in groups[0]] == ["Robot parts", "robot parts", "Robot Parts"], groups[0]
+    assert groups[0][0] == ("Robot parts", 18), "most-used spelling leads"
+
+
 def main():
     failed = 0
     for fn in TESTS:

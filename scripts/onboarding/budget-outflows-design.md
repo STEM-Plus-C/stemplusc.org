@@ -122,8 +122,10 @@ be disciplined, the drift is made mechanical:
   `allow_blank=True` and **error messages off** — so it offers what you have
   used before while still accepting something new. A validation that rejected a
   new category would defeat the decision to start loose.
-- The dry-run report prints the histogram and flags near-duplicates, grouping
-  with the same `norm()` the codebase already uses for name matching:
+- The dry-run report prints the histogram and flags near-duplicates,
+  grouping with `norm_category()`, which collapses case and spacing only —
+  deliberately *not* the existing `norm()`, which splits on the first hyphen
+  because it is tuned for names and would truncate `Pre-season build`:
 
 ```
   Categories (7 distinct, 41 rows):

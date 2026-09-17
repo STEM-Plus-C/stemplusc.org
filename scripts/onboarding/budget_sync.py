@@ -49,7 +49,7 @@ Environment (for --zeffy):
 import argparse
 import shutil
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime
 from pathlib import Path
 
@@ -76,6 +76,7 @@ from build_v2 import (  # noqa: E402
     key_of,
     load_ledger_ids,
     norm,
+    norm_category,
     payment_dates,
     read_zeffy_map,
     student_answer,
@@ -194,6 +195,31 @@ def overwide_expense_rows(ws):
         if any(v not in (None, "") for v in row[len(EXPENSE_COLS):]):
             out.append(i)
     return out
+
+
+def category_counts(rows):
+    """Distinct categories and how many rows use each. Blanks are not a category."""
+    return Counter(
+        (r[2] or "").strip() for r in rows if (r[2] or "").strip()
+    )
+
+
+def category_variants(counts):
+    """
+    Groups of spellings that normalise to one category.
+
+    Only groups with more than one spelling come back — the report is about
+    drift, and a category spelled one way consistently is not drift. Each group
+    leads with the most-used spelling, which is the one worth standardising on.
+    """
+    groups = defaultdict(list)
+    for name, n in counts.items():
+        groups[norm_category(name)].append((name, n))
+    return [
+        sorted(v, key=lambda pair: (-pair[1], pair[0]))
+        for v in groups.values()
+        if len(v) > 1
+    ]
 
 
 # ----------------------------------------------------------------- students
