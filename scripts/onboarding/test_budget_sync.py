@@ -258,6 +258,31 @@ def test_refuses_a_first_build_that_would_drop_v1_expenses():
         # No --from at all: nothing to seed from, nothing to refuse.
         assert bs.v1_expenses_refusal(None, []) == []
 
+    # Review finding: a sheet can carry rows past the header that openpyxl's
+    # max_row counts but that hold no expense data at all -- a border
+    # applied to a range, a stray formatted-but-empty cell. Counting via
+    # max_row said "5 expense row(s)" for a sheet with none; the fix is to
+    # count what read_expenses() actually returns, which already treats an
+    # all-blank row as not a row.
+    from openpyxl.styles import Border, Side
+
+    with tempfile.TemporaryDirectory() as td:
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        ws = wb.create_sheet("Expenses")
+        ws.append([name for name, _width in EXPENSE_COLS])
+        thin = Border(left=Side(style="thin"))
+        for r in range(2, 7):
+            for c in range(1, len(EXPENSE_COLS) + 1):
+                ws.cell(r, c).border = thin
+        bordered_path = str(Path(td) / "v1-bordered.xlsx")
+        wb.save(bordered_path)
+
+        assert bs.v1_expenses_refusal(bordered_path, []) == [], (
+            "styling with no values is not an expense row; a real --from "
+            "first build must not be blocked over formatting alone"
+        )
+
 
 def cell_equal(before, after):
     """

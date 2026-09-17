@@ -648,21 +648,36 @@ def v1_expenses_refusal(seed_from, expense_rows):
     improvisation, not a migration. So when v1 actually holds expense rows
     and this build has none, refuse instead of writing an Expenses sheet
     that quietly has none of them either.
+
+    Loads v1 itself rather than taking a workbook, unlike the other
+    predicates in this module: main() only opens v1 for the Incomes seed
+    block, which runs when `income_rows` is empty -- a different condition
+    from this one -- so there is no workbook already in hand on this code
+    path to pass in, and threading one through main() would add a parameter
+    that exists for this one caller alone.
     """
     if not seed_from or expense_rows:
         return []
     v1 = openpyxl.load_workbook(seed_from, data_only=True)
-    if "Expenses" not in v1.sheetnames:
-        return []
-    n = max(0, v1["Expenses"].max_row - 1)
-    if not n:
-        return []
-    return [
-        f"\nRefusing to write: {seed_from} carries {n} expense row(s) that "
-        "this build would drop.\n",
-        "    Look at their real shape before deciding how to carry them across:",
-        f'    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses --out "{seed_from}"\n',
-    ]
+    try:
+        if "Expenses" not in v1.sheetnames:
+            return []
+        # Not max_row - 1: openpyxl's bounding box includes rows that carry
+        # only a border or a stray formatted-but-empty cell, which is not
+        # the same question as "how many expense rows are here" -- the same
+        # gap read_expenses() already closes for the real reader, by
+        # skipping any row with nothing in it.
+        n = len(read_expenses(v1))
+        if not n:
+            return []
+        return [
+            f"\nRefusing to write: {seed_from} carries {n} expense row(s) that "
+            "this build would drop.\n",
+            "    Look at their real shape before deciding how to carry them across:",
+            f'    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses --out "{seed_from}"\n',
+        ]
+    finally:
+        v1.close()
 
 
 # ------------------------------------------------------------------- main
@@ -692,6 +707,9 @@ def main():
 
     existing_wb = openpyxl.load_workbook(out, data_only=True) if out.exists() else None
     income_rows = read_incomes(existing_wb) if existing_wb else []
+    # Carried through as-is. Ingesting *new* expenses (receipts, a
+    # Zeffy-style feed) is not this script's job -- this just has to stop
+    # clobbering what is already on the sheet.
     expense_rows = read_expenses(existing_wb) if existing_wb else []
     # Computed here, where the worksheet is in hand: overwide_expense_rows
     # needs the actual sheet, not expense_rows, which has already dropped
