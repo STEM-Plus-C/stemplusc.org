@@ -74,6 +74,53 @@ def test_dump_sheet_reports_header_and_rows():
         assert "8 columns" in out, f"expected the column count, got:\n{out}"
 
 
+@test
+def test_read_expenses_roundtrips_values_and_order():
+    rows_in = [
+        [date(2026, 8, 1), "Acme Parts", "Robot parts", 120.5, "team card", "INV-1", "", ""],
+        [date(2026, 8, 9), "Bolt Supply", "Raw materials", 40.0, "team card", "INV-2", "", "rush"],
+    ]
+    with tempfile.TemporaryDirectory() as td:
+        path = fixture_workbook(Path(td), expenses=rows_in)
+        wb = openpyxl.load_workbook(path, data_only=True)
+        got = bs.read_expenses(wb)
+    assert len(got) == 2, got
+    assert [r[1] for r in got] == ["Acme Parts", "Bolt Supply"], "order must be preserved"
+    assert got[0][3] == 120.5
+    assert all(len(r) == len(EXPENSE_COLS) for r in got), "rows pad to the spec width"
+
+
+@test
+def test_read_expenses_skips_blank_rows_and_missing_sheet():
+    with tempfile.TemporaryDirectory() as td:
+        path = fixture_workbook(Path(td), expenses=[
+            [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "", ""],
+            [None, None, None, None, None, None, None, None],
+        ])
+        wb = openpyxl.load_workbook(path, data_only=True)
+        assert len(bs.read_expenses(wb)) == 1
+        del wb["Expenses"]
+        assert bs.read_expenses(wb) == [], "a missing sheet is empty, not an error"
+
+
+@test
+def test_expense_ids_present_ignores_hand_entered_rows():
+    rows = [
+        [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "EXP-1", ""],
+        [date(2026, 8, 2), "Bolt Supply", "Raw materials", 20.0, "", "", "", ""],
+        [date(2026, 8, 3), "Cog Co", "Tools", 30.0, "", "", "  EXP-2  ", ""],
+    ]
+    assert bs.expense_ids_present(rows) == {"EXP-1", "EXP-2"}, bs.expense_ids_present(rows)
+
+
+@test
+def test_overwide_rows_are_detected():
+    narrow = [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "", ""]
+    wide = narrow + ["stray value"]
+    assert bs.overwide_expense_rows([narrow]) == []
+    assert bs.overwide_expense_rows([narrow, wide]) == [3], "1-based sheet row, header is row 1"
+
+
 def main():
     failed = 0
     for fn in TESTS:

@@ -154,6 +154,41 @@ def zeffy_ids_present(rows):
     return {str(r[5]).strip() for r in rows if r[5] not in (None, "")}
 
 
+def read_expenses(wb):
+    """
+    Every expense row already recorded, in order.
+
+    Same contract as read_incomes, for the same reason: these rows are about to
+    be written into a fresh sheet, so what they say has to survive verbatim.
+    Nobody's typing is reformatted on the way through.
+    """
+    if "Expenses" not in wb.sheetnames:
+        return []
+    ws = wb["Expenses"]
+    rows = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(v not in (None, "") for v in row):
+            continue
+        rows.append(list(row) + [None] * (len(EXPENSE_COLS) - len(row)))
+    return rows
+
+
+def expense_ids_present(rows):
+    """The dedupe key. Column 7 is Expense ID; blank means hand-entered."""
+    return {str(r[6]).strip() for r in rows if r[6] not in (None, "")}
+
+
+def overwide_expense_rows(rows):
+    """
+    Sheet rows carrying more columns than the spec, which a write would drop.
+
+    read_expenses pads a short row but cannot shorten a long one, and build()
+    only writes the columns it knows about — so a value typed into column I
+    disappears on the next sync, silently. Reported so it cannot.
+    """
+    return [i for i, r in enumerate(rows, start=2) if len(r) > len(EXPENSE_COLS)]
+
+
 # ----------------------------------------------------------------- students
 
 
