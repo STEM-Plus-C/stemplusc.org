@@ -10,9 +10,11 @@ Run:
     python3 scripts/onboarding/test_budget_sync.py
 """
 
+import io
 import sys
 import tempfile
 import traceback
+from contextlib import contextmanager, redirect_stdout
 from datetime import date, datetime
 from pathlib import Path
 
@@ -21,6 +23,7 @@ import openpyxl
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import budget_sync as bs  # noqa: E402
+import build_v2  # noqa: E402
 from build_v2 import EXPENSE_COLS, INCOME_COLS  # noqa: E402
 
 TESTS = []
@@ -212,17 +215,89 @@ def test_expense_report_flags_rows_wider_than_the_spec():
 
 
 @test
+def test_hand_typed_amounts_and_categories_do_not_crash_the_run():
+    """
+    A review finding, and a robustness regression against main.
+
+    Before this branch Expenses sat in PRESERVED and nothing read it, so a
+    stray cell on the one sheet people type into could not hurt anything.
+    Then category_counts did `(r[2] or "").strip()` and expense_report did
+    `float(r[3] or 0)`, and each of the four cells below killed the whole run
+    with a traceback -- after the Roster and Incomes lines, before any
+    expense report, drift report, missing-id report or refusal, and on a
+    --commit run after the backup had already been taken. Every one of them
+    is a plausible thing to type into a sheet fed by receipts.
+    """
+    # Category as a number: 2026 arrives as an int, and int has no .strip().
+    assert dict(bs.category_counts([[None, "Acme Parts", 2026, 10.0, "", "", "", ""]])) == {
+        "2026": 1
+    }, "a numeric category is a category, not an AttributeError"
+
+    assert bs.parse_amount(120.5) == 120.5
+    assert bs.parse_amount(40) == 40.0
+    assert bs.parse_amount("40.25") == 40.25, "a bare numeric string reads the same everywhere"
+    # Whitespace is an empty cell someone's cursor landed in, and `or 0` has
+    # always counted an empty Amount as zero. Not a parse failure.
+    assert bs.parse_amount("   ") == 0.0
+    assert bs.parse_amount(None) == 0.0
+    assert bs.parse_amount("") == 0.0
+    # Not coerced on purpose: see parse_amount's docstring. Reading '$1,200.00'
+    # as 1200 here while Excel still holds text would make this total right
+    # and the front page's total wrong.
+    assert bs.parse_amount("$1,200.00") is None
+    assert bs.parse_amount("n/a") is None
+
+    rows = [
+        [date(2026, 8, 1), "Acme Parts", "Tools", 100.0, "", "", "", ""],
+        [date(2026, 8, 2), "Bolt Supply", "Tools", "   ", "", "", "", ""],
+        [date(2026, 8, 3), "Cog Co", "Tools", "$1,200.00", "", "", "", ""],
+        [date(2026, 8, 4), "Dial Ltd", 2026, "n/a", "", "", "", ""],
+        [date(2026, 8, 5), "Edge Inc", "Travel", 20.5, "", "", "", ""],
+    ]
+    with tempfile.TemporaryDirectory() as td:
+        path = fixture_workbook(Path(td), expenses=rows)
+        wb = openpyxl.load_workbook(path, data_only=True)
+        unreadable = bs.unreadable_amount_rows(wb["Expenses"])
+    # Physical sheet rows, as the over-wide list is: '$1,200.00' on sheet row
+    # 4 and 'n/a' on sheet row 5. The whitespace row is not in the list.
+    assert unreadable == [4, 5], unreadable
+
+    text = "\n".join(bs.expense_report(rows, unreadable=unreadable))
+    assert "5 row(s), $120.50" in text, (
+        f"the total must be the amounts that parse, nothing guessed:\n{text}"
+    )
+    assert "2 row(s) not counted" in text, f"the total must say it is short:\n{text}"
+    assert "row 4, 5" in text, f"and name the rows to retype:\n{text}"
+
+    # And with nothing odd in it, the total is still simply right.
+    clean = [
+        [date(2026, 8, 1), "Acme Parts", "Tools", 100.0, "", "", "", ""],
+        [date(2026, 8, 2), "Bolt Supply", "Travel", 50.5, "", "", "", ""],
+    ]
+    clean_text = "\n".join(bs.expense_report(clean))
+    assert "2 row(s), $150.50" in clean_text, clean_text
+    assert "not counted" not in clean_text, clean_text
+
+
+@test
 def test_build_writes_expense_number_formats():
     """
     A review finding: deleting both .number_format assignments in build()'s
     Expenses block leaves every other test green, yet formats are half the
     stated reason Expenses graduated out of PRESERVED. Pin them down.
+
+    Asserted after a save and a reload, not on the in-memory workbook: what
+    matters is the format an operator opens the file to, and a format that is
+    set on a cell object but lost in serialization would pass the in-memory
+    check while the sheet on disk still shows a bare 10.
     """
     rows = [[date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", ""]]
-    wb = bs.build({}, [], rows)
-    ws = wb["Expenses"]
-    assert ws.cell(2, 1).number_format == "yyyy-mm-dd", ws.cell(2, 1).number_format
-    assert ws.cell(2, 4).number_format == '"$"#,##0.00', ws.cell(2, 4).number_format
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / "formats.xlsx"
+        bs.build({}, [], rows).save(out)
+        ws = openpyxl.load_workbook(out)["Expenses"]
+        assert ws.cell(2, 1).number_format == "yyyy-mm-dd", ws.cell(2, 1).number_format
+        assert ws.cell(2, 4).number_format == '"$"#,##0.00', ws.cell(2, 4).number_format
 
 
 @test
@@ -337,8 +412,18 @@ def test_build_writes_a_categories_sheet_ordered_by_use():
 
 @test
 def test_dropdown_covers_the_category_column_and_does_not_forbid_new_values():
+    """
+    Asserted on the reopened workbook, which is what the spec's test 6 names.
+
+    A DataValidation attached to an in-memory worksheet proves the object was
+    built, not that Excel will ever see it — the validation has to survive
+    serialization to be a dropdown at all.
+    """
     rows = [[date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", ""]]
-    wb = bs.build({}, [], rows)
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / "dropdown.xlsx"
+        bs.build({}, [], rows).save(out)
+        wb = openpyxl.load_workbook(out)
     dvs = list(wb["Expenses"].data_validations.dataValidation)
     assert len(dvs) == 1, f"expected one validation, got {len(dvs)}"
     dv = dvs[0]
@@ -384,6 +469,12 @@ def test_the_script_never_names_the_analysis_workbook():
     the defect this guards against. Docstrings are collected first and
     excluded; comments never appear in the AST at all, so they are exempt
     automatically, which is correct for the same reason.
+
+    Scoped to budget_sync.py alone, deliberately, even though it imports
+    fourteen names from build_v2: this guards the module that actually opens
+    workbooks, and widening it to the import graph would assert over
+    build_v2's own callers, which have nothing to do with this script's
+    promise never to open the analysis workbook.
     """
     import ast
 
@@ -412,6 +503,230 @@ def test_the_script_never_names_the_analysis_workbook():
     assert not offenders, [
         f"line {n.lineno}: {n.value!r}" for n in offenders
     ]
+
+
+# --------------------------------------------------- driving main() end to end
+#
+# An earlier round recorded that main() could not be tested because doing so
+# needs a roster, and a roster cannot live in a public repo. That was wrong.
+# The roster is a flag, not a fixture: a two-column CSV holding one invented
+# name satisfies it. The only things main() reaches for by module constant are
+# the data workbook and the onboarding ledger, and both can be redirected. So
+# the four properties nothing else covers -- a dry run writes nothing, a commit
+# leaves a backup, and each new refusal actually exits 1 -- are testable after
+# all, with no real roster, no ledger and no network.
+
+
+def write_roster_csv(tmp):
+    """
+    A two-column roster holding one invented student.
+
+    Two columns because these tests are about what main() writes, not about
+    contact fields; every other column is optional. The name is invented --
+    this repository is public and no fixture carries a real one.
+    """
+    path = tmp / "roster.csv"
+    path.write_text("Student,Participant ID\nRiver Testcase,TDS-27-901\n", encoding="utf-8")
+    return path
+
+
+@contextmanager
+def module_pointed_at(tmp):
+    """
+    Redirect budget_sync's module-level paths into a temp directory.
+
+    load_ledger_ids is stubbed in *both* modules that look it up: budget_sync
+    imported it by name, and build_v2.collect_students calls its own global on
+    the --from path. Patching only one leaves a test reading the real ledger
+    on whichever machine happens to have one.
+    """
+    saved = (bs.DATA_BOOK, bs.LEDGER_PATH, bs.load_ledger_ids, build_v2.load_ledger_ids)
+    bs.DATA_BOOK = tmp / "FRC Data test.xlsx"
+    bs.LEDGER_PATH = tmp / "no-such-ledger.json"
+    bs.load_ledger_ids = build_v2.load_ledger_ids = lambda *a, **k: {}
+    try:
+        yield
+    finally:
+        bs.DATA_BOOK, bs.LEDGER_PATH, bs.load_ledger_ids, build_v2.load_ledger_ids = saved
+
+
+def run_main(argv):
+    """Run main() with these flags; return (exit code, captured stdout)."""
+    buf = io.StringIO()
+    saved_argv = sys.argv
+    sys.argv = ["budget_sync.py", *argv]
+    try:
+        with redirect_stdout(buf):
+            try:
+                bs.main()
+                code = 0
+            except SystemExit as exc:
+                code = 0 if exc.code is None else exc.code
+    finally:
+        sys.argv = saved_argv
+    return code, buf.getvalue()
+
+
+TYPED_EXPENSE = [
+    date(2026, 8, 1), "Acme Parts", "Robot parts", 120.5, "team card", "INV-1", "", "as typed",
+]
+
+
+@test
+def test_a_dry_run_leaves_the_workbook_byte_for_byte_unchanged():
+    """
+    The headline safety property after row preservation, and the spec's second
+    acceptance criterion. Dry run is the default, so this is what an operator
+    gets when they forget --commit.
+
+    Bytes rather than mtime: a rebuild that happened to land on the same
+    modification time would still have rewritten every row on the sheet.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        out = fixture_workbook(tmp, expenses=[TYPED_EXPENSE])
+        csv_path = write_roster_csv(tmp)
+        before_bytes = out.read_bytes()
+        before_files = sorted(p.name for p in tmp.iterdir())
+
+        with module_pointed_at(tmp):
+            code, text = run_main(["--roster-csv", str(csv_path), "--out", str(out)])
+
+        assert code == 0, f"exit {code}:\n{text}"
+        assert "dry run" in text, text
+        assert "Wrote" not in text, text
+        assert out.read_bytes() == before_bytes, "a dry run rewrote the data workbook"
+        assert sorted(p.name for p in tmp.iterdir()) == before_files, (
+            "a dry run created a file — no backup, no temp, nothing"
+        )
+
+
+@test
+def test_a_commit_leaves_exactly_one_backup_beside_the_workbook():
+    """
+    The spec's fourth acceptance criterion. The backup is the only thing
+    standing between a bad rebuild and a season of hand-typed rows, so its
+    absence has to fail a test rather than be noticed afterwards.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        out = fixture_workbook(tmp, expenses=[TYPED_EXPENSE])
+        csv_path = write_roster_csv(tmp)
+        before_bytes = out.read_bytes()
+        before_files = {p.name for p in tmp.iterdir()}
+
+        with module_pointed_at(tmp):
+            code, text = run_main(
+                ["--roster-csv", str(csv_path), "--out", str(out), "--commit"]
+            )
+
+        assert code == 0, f"exit {code}:\n{text}"
+        assert "Backed up to" in text, text
+        assert out.read_bytes() != before_bytes, "--commit did not rewrite the workbook"
+        new = sorted(p.name for p in tmp.iterdir() if p.name not in before_files)
+        assert len(new) == 1, f"expected one new file, got {new}"
+        assert ".backup-" in new[0] and new[0].endswith(".xlsx"), new[0]
+
+        # And the row a person typed is still there, through main() rather
+        # than through build() directly.
+        reread = bs.read_expenses(openpyxl.load_workbook(out, data_only=True))
+        assert len(reread) == 1 and reread[0][1] == "Acme Parts", reread
+
+
+@test
+def test_the_overwide_refusal_exits_1_and_writes_nothing():
+    """
+    The refusal is only worth anything if it actually stops the write. The
+    predicate is tested above; this tests the wiring -- exit code and, more
+    importantly, that nothing reached the disk, not even the backup.
+    """
+    wide = [date(2026, 8, 3), "Cog Co", "Tools", 30.0, "", "", "", "", "stray value"]
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        out = fixture_workbook(tmp, expenses=[TYPED_EXPENSE, wide])
+        csv_path = write_roster_csv(tmp)
+        before_bytes = out.read_bytes()
+        before_files = sorted(p.name for p in tmp.iterdir())
+
+        with module_pointed_at(tmp):
+            code, text = run_main(
+                ["--roster-csv", str(csv_path), "--out", str(out), "--commit"]
+            )
+
+        assert code == 1, f"expected exit 1, got {code}:\n{text}"
+        assert "Refusing to write" in text, text
+        assert "Backed up to" not in text, "refused after taking a backup"
+        assert out.read_bytes() == before_bytes
+        assert sorted(p.name for p in tmp.iterdir()) == before_files, "a refusal left a file behind"
+
+
+@test
+def test_the_unreadable_amount_refusal_exits_1_and_writes_nothing():
+    """
+    The third refusal, added with parse_amount, gets the same wiring check as
+    the other two: removing its sys.exit(1) has to fail a test rather than
+    quietly let a short total reach the front page.
+    """
+    pasted = [date(2026, 8, 2), "Bolt Supply", "Tools", "$1,200.00", "", "", "", ""]
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        out = fixture_workbook(tmp, expenses=[TYPED_EXPENSE, pasted])
+        csv_path = write_roster_csv(tmp)
+        before_bytes = out.read_bytes()
+        before_files = sorted(p.name for p in tmp.iterdir())
+
+        with module_pointed_at(tmp):
+            code, text = run_main(
+                ["--roster-csv", str(csv_path), "--out", str(out), "--commit"]
+            )
+
+        assert code == 1, f"expected exit 1, got {code}:\n{text}"
+        assert "Amount that is not a number" in text, text
+        # The report still ran: the operator is told which row to retype, and
+        # the total says it is short, before anything refuses.
+        assert "row 3" in text, text
+        assert "1 row(s) not counted" in text, text
+        assert "Backed up to" not in text, "refused after taking a backup"
+        assert out.read_bytes() == before_bytes
+        assert sorted(p.name for p in tmp.iterdir()) == before_files, "a refusal left a file behind"
+
+
+@test
+def test_the_v1_expenses_refusal_exits_1_and_writes_nothing():
+    """
+    Same wiring check for the other new refusal. This one is reached on a
+    --from first build, where the output workbook does not exist yet -- so
+    "writes nothing" means the file is still not there afterwards.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        v1 = tmp / "v1.xlsx"
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        # collect_students reads v1's Incomes sheet, and main's seed block
+        # reads it again; a header alone is enough for both.
+        inc = wb.create_sheet("Incomes")
+        inc.append([name for name, _width in INCOME_COLS])
+        exp = wb.create_sheet("Expenses")
+        exp.append([name for name, _width in EXPENSE_COLS])
+        exp.append([date(2026, 8, 1), "Acme Parts", "Robot parts", 100.0, "", "", "", ""])
+        wb.save(v1)
+
+        out = tmp / "first-build.xlsx"
+        csv_path = write_roster_csv(tmp)
+        before_files = sorted(p.name for p in tmp.iterdir())
+
+        with module_pointed_at(tmp):
+            code, text = run_main(
+                ["--roster-csv", str(csv_path), "--from", str(v1),
+                 "--out", str(out), "--commit"]
+            )
+
+        assert code == 1, f"expected exit 1, got {code}:\n{text}"
+        assert "1 expense row(s) that this build would drop" in text, text
+        assert "--dump-sheet Expenses" in text, text
+        assert not out.exists(), "refused, and yet wrote the workbook"
+        assert sorted(p.name for p in tmp.iterdir()) == before_files, "a refusal left a file behind"
 
 
 def main():
