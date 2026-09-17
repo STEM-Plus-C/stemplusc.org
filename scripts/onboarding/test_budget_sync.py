@@ -183,7 +183,10 @@ def test_expense_report_states_total_categories_and_drift():
     text = "\n".join(bs.expense_report(rows))
     assert "3 row(s)" in text, text
     assert "$170.50" in text, text
-    assert "2 distinct" in text, "'Robot parts' and 'robot parts' are two spellings, not one"
+    assert "3 distinct" in text, (
+        "three spellings are listed below the header, so three are counted; "
+        "it's the duplicates section below that reveals two of them are one category"
+    )
     assert "Possible duplicates" in text, text
     assert "'Robot parts' (1)" in text and "'robot parts' (1)" in text, text
 

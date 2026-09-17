@@ -245,14 +245,11 @@ def expense_report(expense_rows, overwide=()):
 
     counts = category_counts(expense_rows)
     if counts:
-        # Distinct counts normalised spellings, not raw ones: "Robot parts"
-        # and "robot parts" are one category that drifted, and the point of
-        # this line is how many real buckets there are, not how many ways
-        # they were typed. The per-line breakdown below still lists every
-        # spelling separately -- that detail is what the duplicates section
-        # below needs.
-        distinct = len({norm_category(name) for name in counts})
-        lines.append(f"\n  Categories ({distinct} distinct, {sum(counts.values())} rows):")
+        # Distinct counts spellings, because that is what the lines beneath
+        # it list -- a header that said "2 distinct" above three listed rows
+        # would read as a bug. Two spellings turning out to be one category
+        # is exactly what the "Possible duplicates" block below calls out.
+        lines.append(f"\n  Categories ({len(counts)} distinct, {sum(counts.values())} rows):")
         for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold())):
             lines.append(f"    {n:>4}  {name}")
 
