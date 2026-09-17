@@ -19,6 +19,41 @@ Refresh after every `budget_sync.py` run: **Data → Refresh All**.
 If the workbook ever moves, change the `Path` on line 12 of `Dues.m` and paste
 it again.
 
+## The front page
+
+Load `Incomes.m` and `Expenses.m` the same way as `Dues.m`, naming the queries
+**`Incomes`** and **`Expenses`**. Then build the summary block with formulas
+rather than a third query — the totals stay readable in the formula bar, and
+there is one less thing to refresh.
+
+First, the one input cell. Put `59000` somewhere on the front page, select it,
+and name it **`PlannedSpend`** (Formulas → Define Name). It is a rough estimate
+and will move; it lives here rather than in a config file because one number
+does not justify one.
+
+| Cell | Formula |
+|---|---|
+| Total Income | `=SUM(Incomes[Amount])` |
+| Total Expenses | `=SUM(Expenses[Amount])` |
+| Planned Spend | `=PlannedSpend` |
+| Over / Under Income | `=SUM(Expenses[Amount])-SUM(Incomes[Amount])` |
+| Remaining to Plan | `=PlannedSpend-SUM(Expenses[Amount])` |
+
+For the breakdowns, use `SUMIFS` against a list of the distinct values:
+
+- **By vendor** — `=SUMIFS(Expenses[Amount],Expenses[Vendor],$A2)`
+- **By category** — `=SUMIFS(Expenses[Amount],Expenses[Category],$A2)`, with the
+  `Categories` query or sheet supplying column A
+- **Income by student** — already in the `Dues` query: Participant ID, Student,
+  Paid to Date. No new query needed.
+
+The chart is three clustered bars — Income, Spend, Plan — over the three summary
+cells. **It lives in this workbook and nothing else may.** `budget_sync.py`
+never opens this file, because openpyxl drops charts when it rewrites a
+workbook; that is the reason the data lives in a second file at all.
+
+Refresh after every sync: **Data → Refresh All**.
+
 ## Types vs formatting
 
 Power Query sets **types**; Excel applies **formatting**. Both are needed and
@@ -83,7 +118,8 @@ For the money columns alone, a further rule is worth having:
 - [x] **Dues** — `Dues.m`, replaces `Dues Status`
 - [ ] **Cash Flow** — reads `Incomes!M`, `Incomes!O`, `Incomes!D`, `Incomes!K`
 - [ ] **Tax Purposes** — reads `Incomes!P`
-- [ ] **FRC Current Budget** — reads `Incomes!G`, `Incomes!H` (holds the chart)
+- [x] **FRC Current Budget** — rebuilt on the `Incomes` and `Expenses` queries,
+      planned-spend-led. Still holds the chart, still never opened by tooling.
 - [ ] **Sponsors** — reads `Incomes!D`
 
 Until Cash Flow and Tax Purposes are done there are two payment ledgers, and
