@@ -178,15 +178,22 @@ def expense_ids_present(rows):
     return {str(r[6]).strip() for r in rows if r[6] not in (None, "")}
 
 
-def overwide_expense_rows(rows):
+def overwide_expense_rows(ws):
     """
-    Sheet rows carrying more columns than the spec, which a write would drop.
+    Sheet rows carrying a value past the last spec column, which a write drops.
 
-    read_expenses pads a short row but cannot shorten a long one, and build()
-    only writes the columns it knows about — so a value typed into column I
-    disappears on the next sync, silently. Reported so it cannot.
+    Takes the worksheet rather than the parsed rows on purpose. openpyxl hands
+    every row back padded to the sheet's widest row, so a length check flags
+    all of them the moment one is wide — and read_expenses has already dropped
+    the blank rows, so its indices no longer name sheet rows. Both of those
+    turn a warning about one cell into noise about every row, which is how a
+    real warning gets ignored.
     """
-    return [i for i, r in enumerate(rows, start=2) if len(r) > len(EXPENSE_COLS)]
+    out = []
+    for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        if any(v not in (None, "") for v in row[len(EXPENSE_COLS):]):
+            out.append(i)
+    return out
 
 
 # ----------------------------------------------------------------- students

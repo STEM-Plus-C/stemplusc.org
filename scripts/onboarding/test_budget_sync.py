@@ -87,7 +87,10 @@ def test_read_expenses_roundtrips_values_and_order():
     assert len(got) == 2, got
     assert [r[1] for r in got] == ["Acme Parts", "Bolt Supply"], "order must be preserved"
     assert got[0][3] == 120.5
-    assert all(len(r) == len(EXPENSE_COLS) for r in got), "rows pad to the spec width"
+    # The padding branch itself rarely fires on real openpyxl input — the
+    # sheet's bounding box already supplies width 8 here — but the contract
+    # callers rely on is the output width, not how it got there.
+    assert all(len(r) == 8 for r in got), "every returned row is exactly the spec width"
 
 
 @test
@@ -115,10 +118,23 @@ def test_expense_ids_present_ignores_hand_entered_rows():
 
 @test
 def test_overwide_rows_are_detected():
-    narrow = [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "", ""]
-    wide = narrow + ["stray value"]
-    assert bs.overwide_expense_rows([narrow]) == []
-    assert bs.overwide_expense_rows([narrow, wide]) == [3], "1-based sheet row, header is row 1"
+    # openpyxl pads every row it returns to the sheet's widest row, so the
+    # only reliable way to find the one overwide row is to read the actual
+    # worksheet — and a blank row ahead of the offender proves the result is
+    # a real (1-based) sheet row number, not an index into some filtered list.
+    normal = [date(2026, 8, 1), "Acme Parts", "Robot parts", 10.0, "", "", "", ""]
+    blank = [None] * 8
+    offender = [date(2026, 8, 3), "Cog Co", "Tools", 30.0, "", "", "", "", "stray value"]
+    with tempfile.TemporaryDirectory() as td:
+        path = fixture_workbook(Path(td), expenses=[normal, blank, offender, normal])
+        wb = openpyxl.load_workbook(path, data_only=True)
+        got = bs.overwide_expense_rows(wb["Expenses"])
+    assert got == [4], f"expected only the offending sheet row, got {got}"
+
+    with tempfile.TemporaryDirectory() as td:
+        path = fixture_workbook(Path(td), expenses=[normal, normal])
+        wb = openpyxl.load_workbook(path, data_only=True)
+        assert bs.overwide_expense_rows(wb["Expenses"]) == []
 
 
 def main():
