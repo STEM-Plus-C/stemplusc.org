@@ -16,8 +16,9 @@ the chart, and is never opened by tooling.
 
 Refresh after every `budget_sync.py` run: **Data → Refresh All**.
 
-If the workbook ever moves, change the `Path` on line 12 of `Dues.m` and paste
-it again.
+If the workbook ever moves, change the `Path` on line 13 of `Dues.m` and paste
+it again. `Incomes.m` and `Expenses.m` carry the same path on their own line 9,
+and both point at `Dues.m:13` in a comment — change all three.
 
 ## The front page
 
@@ -66,6 +67,32 @@ applied once in Excel and **survives refresh**, as long as you format the table
 
 Check it is on: click in the table → **Table Design → Properties →
 External Data Properties → Preserve cell formatting on refresh**.
+
+## Do not put formulas in the data workbook's `Expenses` sheet
+
+`budget_sync.py` opens the data workbook with `data_only=True` and rebuilds
+every sheet from what it read. That means it never sees a formula — only the
+value Excel last cached for it — and writes that value back. **A formula typed
+into `Expenses` is replaced by its number on the next sync.** The formula is
+gone; the number stays.
+
+`Amount` is where this will happen. It is the cell where someone writes
+`=B2*1.0863` to convert a receipt, or `=42.50+7.25` to add shipping. Type the
+result instead, and if the arithmetic is worth keeping, put a note in `Notes` or
+do it on the analysis workbook's front page, which the sync never opens.
+
+Worse than losing the formula: if the workbook has not been recalculated and
+saved by Excel since the formula was typed, there is no cached value at all.
+`data_only=True` then reads the cell as empty, and the sync writes an empty
+`Amount` — a row that still looks like an expense and contributes nothing to any
+total. If instead the cell holds text that looks like money (`$1,200.00` pasted
+straight off a receipt, or `n/a`), the sync reports the sheet row and **refuses
+to write** until it is a real number, because `SUM(Expenses[Amount])` on the
+front page would skip it just as silently.
+
+This warning lives here and not on the sheet itself on purpose: `read_expenses`
+treats every non-empty row below the header as an expense, so a note row typed
+into `Expenses` would be ingested as one.
 
 ## Columns
 

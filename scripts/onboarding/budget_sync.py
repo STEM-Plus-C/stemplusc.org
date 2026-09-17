@@ -37,6 +37,8 @@ by definition and are never touched.
 DRY RUN IS THE DEFAULT, as with onboard.mjs. Pass --commit to write.
 
 Usage:
+    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses
+    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses --out "<v1.xlsx>"
     python3 scripts/onboarding/budget_sync.py <roster.json>
     python3 scripts/onboarding/budget_sync.py <roster.json> --commit
     python3 scripts/onboarding/budget_sync.py <roster.json> --zeffy --commit
@@ -341,8 +343,12 @@ def expense_report(expense_rows, overwide=(), unreadable=()):
         shown = ", ".join(str(i) for i in overwide[:10])
         lines.append(f"\n  {len(overwide)} expense row(s) have more columns than the spec "
                      f"({len(EXPENSE_COLS)}): row {shown}")
-        lines.append("    Those values are dropped on write. Move them into Notes, or")
-        lines.append("    widen EXPENSE_COLS, before committing.")
+        lines.append("    Those values are dropped on write. Look at what is actually in")
+        lines.append("    those columns before widening the spec around it — the live")
+        lines.append("    Expenses sheet is a values-only copy of an older sheet whose")
+        lines.append("    shape the spec declares unknown, so the answer is most likely")
+        lines.append("    to migrate the sheet into these columns, not to add more:")
+        lines.append("      python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses")
     return lines
 
 
@@ -749,7 +755,10 @@ def v1_expenses_refusal(seed_from, expense_rows):
         return [
             f"\nRefusing to write: {seed_from} carries {n} expense row(s) that "
             "this build would drop.\n",
-            "    Look at their real shape before deciding how to carry them across:",
+            "    There is no flag that overrides this and nothing to re-run: carrying",
+            "    them across means writing a seed block for Expenses, the way Incomes",
+            "    already has one, and that is a code change. It cannot be written",
+            "    until the sheet's real shape is known, so look at that first:",
             f'    python3 scripts/onboarding/budget_sync.py --dump-sheet Expenses --out "{seed_from}"\n',
         ]
     finally:
