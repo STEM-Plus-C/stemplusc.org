@@ -31,9 +31,6 @@ npm-debug.log*
 # Photos folder (large media - consider Git LFS or separate hosting)
 photos/
 
-# Internal docs
-docs/
-
 # Participant data — NEVER commit. This repository is public on GitHub, and
 # git history is permanent: a CSV of minors' names, emails, and phone numbers
 # committed once is public forever, even if deleted in a later commit.
