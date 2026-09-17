@@ -13,7 +13,7 @@ Run:
 import sys
 import tempfile
 import traceback
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
@@ -171,6 +171,102 @@ def test_category_variants_groups_spellings_and_ignores_clean_ones():
     assert len(groups) == 1, groups
     assert [name for name, _n in groups[0]] == ["Robot parts", "robot parts", "Robot Parts"], groups[0]
     assert groups[0][0] == ("Robot parts", 18), "most-used spelling leads"
+
+
+def cell_equal(before, after):
+    """
+    Compare a written cell with the one read back.
+
+    openpyxl writes '' as an empty cell and reads it back as None, so a strict
+    == would fail on every blank a person left blank. Both spellings mean
+    empty. 0 is not empty and is compared normally.
+    """
+    if before in (None, "") and after in (None, ""):
+        return True
+    # A date-formatted cell always reads back as `datetime`, even one written
+    # as a plain `date` — verified against actual openpyxl output, not
+    # assumed. That is a serialization detail, not a changed value.
+    if isinstance(before, date) and isinstance(after, datetime):
+        return before == after.date()
+    return before == after
+
+
+@test
+def test_hand_entered_rows_survive_a_rebuild_unchanged():
+    """The whole point. A sync must not alter a row a person typed."""
+    rows_in = [
+        [date(2026, 8, 1), "Acme Parts", "Robot parts", 120.5, "team card", "INV-1", "", "left as typed"],
+        [date(2026, 8, 9), "Bolt Supply", "raw materials", 40.0, "R. Coach", "INV-2", "", ""],
+    ]
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / "rebuilt.xlsx"
+        bs.build({}, [], rows_in).save(out)
+        reread = bs.read_expenses(openpyxl.load_workbook(out, data_only=True))
+    assert len(reread) == 2, reread
+    for before, after in zip(rows_in, reread):
+        for i, (name, _width) in enumerate(EXPENSE_COLS):
+            assert cell_equal(before[i], after[i]), (
+                f"{name} changed: {before[i]!r} -> {after[i]!r}"
+            )
+
+
+@test
+def test_build_writes_a_categories_sheet_ordered_by_use():
+    rows = [
+        [date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", ""],
+        [date(2026, 8, 2), "Bolt Supply", "Robot parts", 20.0, "", "", "", ""],
+        [date(2026, 8, 3), "Cog Co", "Robot parts", 30.0, "", "", "", ""],
+    ]
+    wb = bs.build({}, [], rows)
+    assert "Categories" in wb.sheetnames, wb.sheetnames
+    ws = wb["Categories"]
+    assert [ws.cell(r, 1).value for r in (2, 3)] == ["Robot parts", "Tools"], "most-used first"
+    assert [ws.cell(r, 2).value for r in (2, 3)] == [2, 1]
+
+
+@test
+def test_dropdown_covers_the_category_column_and_does_not_forbid_new_values():
+    rows = [[date(2026, 8, 1), "Acme Parts", "Tools", 10.0, "", "", "", ""]]
+    wb = bs.build({}, [], rows)
+    dvs = list(wb["Expenses"].data_validations.dataValidation)
+    assert len(dvs) == 1, f"expected one validation, got {len(dvs)}"
+    dv = dvs[0]
+    assert dv.type == "list"
+    assert f"C2:C{bs.CATEGORY_VALIDATION_ROWS}" in str(dv.sqref), str(dv.sqref)
+    assert not dv.showErrorMessage, "a new category must not be rejected"
+    assert dv.allow_blank, "a blank category must stay allowed"
+    assert "Categories" in dv.formula1, dv.formula1
+    # showDropDown is inverted in OOXML: true SUPPRESSES the in-cell arrow.
+    assert dv.showDropDown in (None, False), (
+        f"showDropDown={dv.showDropDown!r} would hide the arrow in Excel"
+    )
+
+
+@test
+def test_no_dropdown_when_there_are_no_categories_yet():
+    wb = bs.build({}, [], [])
+    assert list(wb["Expenses"].data_validations.dataValidation) == [], "empty range is invalid in Excel"
+
+
+@test
+def test_expenses_is_no_longer_blindly_preserved():
+    assert "Expenses" not in bs.PRESERVED, (
+        "PRESERVED does a values-only copy, which destroys the dropdown and formats"
+    )
+    assert "Zeffy Map" in bs.PRESERVED and "Sponsors" in bs.PRESERVED
+
+
+@test
+def test_the_script_never_names_the_analysis_workbook():
+    """
+    An invariant guard, not a behavioural test.
+
+    openpyxl destroys charts on write, and the chart lives in the analysis
+    workbook. Nothing in this script should reference that file at all. If
+    someone adds a reference, this fires and they have to think about it.
+    """
+    src = (Path(__file__).resolve().parent / "budget_sync.py").read_text()
+    assert "FRC Budget" not in src, "budget_sync.py must not reference the analysis workbook"
 
 
 def main():

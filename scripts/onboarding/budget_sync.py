@@ -5,7 +5,7 @@ Keep the budget's data workbook in step with the onboarding ledger and Zeffy.
 ## Why there are two workbooks
 
 The budget used to be one file doing two jobs, and the second job kept the
-first one from being automated. `FRC Budget 2026-2027.xlsx` holds a chart, and
+first one from being automated. The analysis workbook holds a chart, and
 openpyxl deletes charts when it rewrites a workbook — which is why add_sheet.py
 exists at all, 184 lines of zip surgery to avoid destroying one picture.
 
@@ -13,7 +13,7 @@ So the data moves to a workbook with no chart in it:
 
     FRC Data 2026-2027.xlsx     Roster, Incomes, Schedule. Written by this
                                 script. Nothing decorative, nothing to lose.
-    FRC Budget 2026-2027.xlsx   Charts, dues analysis, expense buckets. Read
+    The analysis workbook       Charts, dues analysis, expense buckets. Read
                                 from the data workbook through Power Query.
                                 Owned by a person; this script never opens it.
 
@@ -54,6 +54,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
+from openpyxl.worksheet.datavalidation import DataValidation
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -69,6 +70,7 @@ from build_v2 import (  # noqa: E402
     INCOME_COLS,
     LAST_PAYMENT,
     MONTHLY,
+    NOTE_FONT,
     ROSTER_COLS,
     START_OVERRIDES,
     collect_students,
@@ -86,9 +88,14 @@ from build_v2 import (  # noqa: E402
 DATA_BOOK = Path.home() / "Library/CloudStorage/OneDrive-STEM+C/FRC Data 2026-2027.xlsx"
 LEDGER_PATH = Path.home() / "STEMC-onboarding" / "state.json"
 
-# Carried through untouched. These hold data a person maintains by hand, and
-# this script has no business regenerating any of it.
-PRESERVED = ("Zeffy Map", "Expenses", "Sponsors")
+# Carried through untouched by a values-only cell copy. That copy is why
+# nothing richer than bare values can live on a preserved sheet — a formula,
+# a format or a dropdown is destroyed on the next run.
+#
+# Expenses used to be here. It now has a real reader and a real writer, which
+# is what lets the script re-apply the category dropdown every sync instead of
+# breaking it.
+PRESERVED = ("Zeffy Map", "Sponsors")
 
 
 # ----------------------------------------------------------------- reading
@@ -424,7 +431,52 @@ def months_owed(start, end, today):
     return months_inclusive(start, last)
 
 
-def build(students, income_rows):
+# Excel rejects a validation over an empty range, and a fixed ceiling means new
+# rows are covered as the sheet grows without re-running anything.
+CATEGORY_VALIDATION_ROWS = 5000
+
+
+def write_categories(wb, counts):
+    """
+    The dropdown's source list, regenerated from what has actually been typed.
+
+    Derived data: rebuilt every run, so nothing should be typed here. Ordered
+    by use then name, so the categories reached for most sit at the top of the
+    dropdown.
+    """
+    ws = wb.create_sheet("Categories")
+    style_header(ws, [("Category", 24), ("Rows", 8)])
+    ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
+    for r, (name, n) in enumerate(ordered, start=2):
+        ws.cell(r, 1, name)
+        ws.cell(r, 2, n)
+    ws.cell(len(ordered) + 3, 1, "Rebuilt by budget_sync.py — do not type here.").font = NOTE_FONT
+    return len(ordered)
+
+
+def attach_category_dropdown(ws, n_categories):
+    """
+    Offer the categories already in use, without forbidding a new one.
+
+    showErrorMessage=False is the whole point. The categories are deliberately
+    not a fixed taxonomy — the decision was to let the data settle first — so a
+    validation that rejected an unseen value would undo that decision on the
+    first receipt from a new kind of vendor. This suggests; it does not gate.
+    """
+    if not n_categories:
+        return
+    dv = DataValidation(
+        type="list",
+        formula1=f"Categories!$A$2:$A${n_categories + 1}",
+        allow_blank=True,
+        showErrorMessage=False,
+        showDropDown=False,
+    )
+    ws.add_data_validation(dv)
+    dv.add(f"C2:C{CATEGORY_VALIDATION_ROWS}")
+
+
+def build(students, income_rows, expense_rows):
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
@@ -464,6 +516,22 @@ def build(students, income_rows):
     for r, d in enumerate(payment_dates(), start=2):
         ws.cell(r, 1, d).number_format = "yyyy-mm-dd"
         ws.cell(r, 2, MONTHLY).number_format = '"$"#,##0'
+
+    ws = wb.create_sheet("Expenses")
+    style_header(ws, EXPENSE_COLS)
+    for r, row in enumerate(expense_rows, start=2):
+        when = row[0]
+        ws.cell(r, 1, when.date() if isinstance(when, datetime) else when).number_format = "yyyy-mm-dd"
+        ws.cell(r, 2, row[1] if row[1] is not None else "")
+        ws.cell(r, 3, row[2] if row[2] is not None else "")
+        ws.cell(r, 4, row[3]).number_format = '"$"#,##0.00'
+        for c in (5, 6, 7, 8):
+            ws.cell(r, c, row[c - 1] if row[c - 1] is not None else "")
+
+    # Categories before the dropdown: the validation points at that sheet's
+    # range, so it has to exist and its length has to be known.
+    n_categories = write_categories(wb, category_counts(expense_rows))
+    attach_category_dropdown(ws, n_categories)
 
     return wb
 
@@ -551,6 +619,10 @@ def main():
 
     existing_wb = openpyxl.load_workbook(out, data_only=True) if out.exists() else None
     income_rows = read_incomes(existing_wb) if existing_wb else []
+    # Carried through as-is. Ingesting *new* expenses (receipts, a Zeffy-style
+    # feed) is not this script's job yet — that is Task 5 — so today's run
+    # just has to stop clobbering what is already on the sheet.
+    expense_rows = read_expenses(existing_wb) if existing_wb else []
     seen = zeffy_ids_present(income_rows)
 
     # First build with --from: bring v1's payment history across, once.
@@ -654,7 +726,7 @@ def main():
         shutil.copy2(out, backup)
         print(f"\nBacked up to {backup.name}")
 
-    wb = build(students, income_rows + added)
+    wb = build(students, income_rows + added, expense_rows)
     carried = carry_over(wb, args.seed_from if args.seed_from else (out if out.exists() else None))
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out)
