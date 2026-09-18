@@ -57,6 +57,7 @@ from pathlib import Path
 
 import openpyxl
 from openpyxl.worksheet.datavalidation import DataValidation
+from zipfile import BadZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -677,6 +678,65 @@ def carry_over(wb, source):
     return done
 
 
+def unreadable_workbook_message(path, exc):
+    """
+    Why a workbook would not open, and what to do about it.
+
+    Every one of these was a traceback first. `--dump-sheet` is the command the
+    runbook tells you to run *before* anything else, against a file in OneDrive
+    — so its failures are the ones most likely to be a person's first contact
+    with this script, and a stack trace is the least useful thing to hand them.
+
+    The dataless case is the one worth naming. OneDrive leaves a file on disk as
+    a placeholder with its real size but no contents, so `path.exists()` is true
+    and the read stalls and then hands zipfile a partial file. The symptom is a
+    corrupt-workbook error about a file that is not corrupt at all.
+    """
+    lines = [f"\nCould not read {path}"]
+
+    try:
+        st = path.stat()
+        dataless = st.st_size > 0 and st.st_blocks == 0
+    except OSError:
+        dataless = False
+
+    if dataless:
+        lines += [
+            "",
+            "The file is a OneDrive placeholder: it has a size but no contents on",
+            "this machine, so reading it stalls and then looks like corruption.",
+            "",
+            "  Right-click it in Finder -> Always Keep on This Device,",
+            "  or open it once in Excel, then run this again.",
+        ]
+    elif isinstance(exc, PermissionError):
+        lines += [
+            "",
+            f"  {type(exc).__name__}: {exc}",
+            "",
+            "Permission denied rather than missing. On macOS, ~/Library/CloudStorage",
+            "is protected: a shell can stat a file there and still not be allowed to",
+            "read it. Run this from a terminal that has Full Disk Access.",
+        ]
+    elif isinstance(exc, BadZipFile):
+        lines += [
+            "",
+            f"  {type(exc).__name__}: {exc}",
+            "",
+            "An .xlsx is a zip archive, and this one did not open as one. Either it",
+            "is not really a workbook, or it is still syncing and only partly here.",
+        ]
+    else:
+        lines += [
+            "",
+            f"  {type(exc).__name__}: {exc}",
+            "",
+            "A timeout usually means a cloud-synced file is being fetched on demand",
+            "and the fetch did not finish. Open it once in Excel and try again.",
+        ]
+    return "\n".join(lines) + "\n"
+
+
 def dump_sheet(path, name, limit=8):
     """
     Print a sheet's header and first rows. Reads only; writes nothing.
@@ -688,7 +748,10 @@ def dump_sheet(path, name, limit=8):
     """
     if not path.exists():
         sys.exit(f"\nNo workbook at {path}\n")
-    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    except (OSError, BadZipFile) as exc:
+        sys.exit(unreadable_workbook_message(path, exc))
     try:
         print(f"\n{path}")
         print(f"Sheets: {', '.join(wb.sheetnames)}\n")

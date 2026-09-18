@@ -729,6 +729,54 @@ def test_the_v1_expenses_refusal_exits_1_and_writes_nothing():
         assert sorted(p.name for p in tmp.iterdir()) == before_files, "a refusal left a file behind"
 
 
+@test
+def test_an_unreadable_workbook_explains_itself_instead_of_tracing_back():
+    """
+    --dump-sheet is the first command the runbook tells you to run, against a
+    file in OneDrive. Its failures are a person's first contact with this
+    script, and each of these was a raw traceback before.
+    """
+    from zipfile import BadZipFile
+
+    with tempfile.TemporaryDirectory() as td:
+        # Not a zip at all: what a half-synced placeholder hands zipfile.
+        junk = Path(td) / "junk.xlsx"
+        junk.write_bytes(b"not a zip")
+        msg = bs.unreadable_workbook_message(junk, BadZipFile("File is not a zip file"))
+        assert "did not open as one" in msg, msg
+        assert "still syncing" in msg, msg
+
+        msg = bs.unreadable_workbook_message(junk, PermissionError(1, "Operation not permitted"))
+        assert "Full Disk Access" in msg, msg
+        assert "CloudStorage" in msg, msg
+
+        msg = bs.unreadable_workbook_message(junk, TimeoutError(60, "Operation timed out"))
+        assert "fetch did not finish" in msg, msg
+
+        # Every message names the file, so the reader knows which one failed.
+        assert str(junk) in msg, msg
+
+
+@test
+def test_dump_sheet_exits_nonzero_on_an_unreadable_workbook():
+    """Exit 1, one readable message, and no traceback."""
+    import io
+    from contextlib import redirect_stdout
+
+    with tempfile.TemporaryDirectory() as td:
+        junk = Path(td) / "junk.xlsx"
+        junk.write_bytes(b"not a zip")
+        buf = io.StringIO()
+        try:
+            with redirect_stdout(buf):
+                bs.dump_sheet(junk, "Expenses")
+        except SystemExit as exc:
+            assert exc.code and "Could not read" in str(exc.code), exc.code
+            assert "Traceback" not in str(exc.code)
+        else:
+            raise AssertionError("expected SystemExit")
+
+
 def main():
     failed = 0
     for fn in TESTS:
