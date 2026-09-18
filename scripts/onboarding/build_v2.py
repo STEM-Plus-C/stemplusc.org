@@ -148,6 +148,25 @@ def norm(s):
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
+def norm_category(s):
+    """
+    Loosen a category enough to spot two spellings of one bucket.
+
+    Deliberately not norm(): that one is tuned for student names and splits on
+    the first hyphen ('Alex Rivera- July'), which would silently truncate a
+    category like 'Pre-season build' to 'pre'. It also strips digits, which a
+    category may legitimately carry.
+
+    Case and internal spacing are the only things collapsed, because merging
+    anything more would hide a distinction someone meant to draw. The job here
+    is to flag 'Robot parts' against 'robot parts' for a human to resolve, not
+    to decide that two categories are the same.
+    """
+    if not s:
+        return ""
+    return re.sub(r"\s+", " ", str(s)).strip().casefold()
+
+
 def fetch_zeffy(team):
     """
     Every payment on the fee and donation campaigns since the season opened.
@@ -383,6 +402,22 @@ INCOME_COLS = [
     ("Type", 16),
     ("Amount", 10),
     ("Zeffy Payment ID", 38),
+    ("Notes", 24),
+]
+
+# Expense ID mirrors Incomes' Zeffy Payment ID: blank means a person typed
+# the row, filled means a script did. Nothing fills it yet — it exists now
+# because it is one column today and a retrofit across hundreds of rows
+# later. Receipt is the tie to evidence: a 501(c)(3) expense that cannot be
+# traced to an invoice is a problem at audit.
+EXPENSE_COLS = [
+    ("Date", 12),
+    ("Vendor", 22),
+    ("Category", 18),
+    ("Amount", 11),
+    ("Paid By", 14),
+    ("Receipt", 22),
+    ("Expense ID", 38),
     ("Notes", 24),
 ]
 

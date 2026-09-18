@@ -16,8 +16,44 @@ the chart, and is never opened by tooling.
 
 Refresh after every `budget_sync.py` run: **Data → Refresh All**.
 
-If the workbook ever moves, change the `Path` on line 12 of `Dues.m` and paste
-it again.
+If the workbook ever moves, change the `Path` on line 13 of `Dues.m` and paste
+it again. `Incomes.m` and `Expenses.m` carry the same path on their own line 9,
+and both point at `Dues.m:13` in a comment — change all three.
+
+## The front page
+
+Load `Incomes.m` and `Expenses.m` the same way as `Dues.m`, naming the queries
+**`Incomes`** and **`Expenses`**. Then build the summary block with formulas
+rather than a third query — the totals stay readable in the formula bar, and
+there is one less thing to refresh.
+
+First, the one input cell. Put `59000` somewhere on the front page, select it,
+and name it **`PlannedSpend`** (Formulas → Define Name). It is a rough estimate
+and will move; it lives here rather than in a config file because one number
+does not justify one.
+
+| Cell | Formula |
+|---|---|
+| Total Income | `=SUM(Incomes[Amount])` |
+| Total Expenses | `=SUM(Expenses[Amount])` |
+| Planned Spend | `=PlannedSpend` |
+| Over / Under Income | `=SUM(Expenses[Amount])-SUM(Incomes[Amount])` |
+| Remaining to Plan | `=PlannedSpend-SUM(Expenses[Amount])` |
+
+For the breakdowns, use `SUMIFS` against a list of the distinct values:
+
+- **By vendor** — `=SUMIFS(Expenses[Amount],Expenses[Vendor],$A2)`
+- **By category** — `=SUMIFS(Expenses[Amount],Expenses[Category],$A2)`, with the
+  `Categories` query or sheet supplying column A
+- **Income by student** — already in the `Dues` query: Participant ID, Student,
+  Paid to Date. No new query needed.
+
+The chart is three clustered bars — Income, Spend, Plan — over the three summary
+cells. **It lives in this workbook and nothing else may.** `budget_sync.py`
+never opens this file, because openpyxl drops charts when it rewrites a
+workbook; that is the reason the data lives in a second file at all.
+
+Refresh after every sync: **Data → Refresh All**.
 
 ## Types vs formatting
 
@@ -31,6 +67,32 @@ applied once in Excel and **survives refresh**, as long as you format the table
 
 Check it is on: click in the table → **Table Design → Properties →
 External Data Properties → Preserve cell formatting on refresh**.
+
+## Do not put formulas in the data workbook's `Expenses` sheet
+
+`budget_sync.py` opens the data workbook with `data_only=True` and rebuilds
+every sheet from what it read. That means it never sees a formula — only the
+value Excel last cached for it — and writes that value back. **A formula typed
+into `Expenses` is replaced by its number on the next sync.** The formula is
+gone; the number stays.
+
+`Amount` is where this will happen. It is the cell where someone writes
+`=B2*1.0863` to convert a receipt, or `=42.50+7.25` to add shipping. Type the
+result instead, and if the arithmetic is worth keeping, put a note in `Notes` or
+do it on the analysis workbook's front page, which the sync never opens.
+
+Worse than losing the formula: if the workbook has not been recalculated and
+saved by Excel since the formula was typed, there is no cached value at all.
+`data_only=True` then reads the cell as empty, and the sync writes an empty
+`Amount` — a row that still looks like an expense and contributes nothing to any
+total. If instead the cell holds text that looks like money (`$1,200.00` pasted
+straight off a receipt, or `n/a`), the sync reports the sheet row and **refuses
+to write** until it is a real number, because `SUM(Expenses[Amount])` on the
+front page would skip it just as silently.
+
+This warning lives here and not on the sheet itself on purpose: `read_expenses`
+treats every non-empty row below the header as an expense, so a note row typed
+into `Expenses` would be ingested as one.
 
 ## Columns
 
@@ -83,7 +145,8 @@ For the money columns alone, a further rule is worth having:
 - [x] **Dues** — `Dues.m`, replaces `Dues Status`
 - [ ] **Cash Flow** — reads `Incomes!M`, `Incomes!O`, `Incomes!D`, `Incomes!K`
 - [ ] **Tax Purposes** — reads `Incomes!P`
-- [ ] **FRC Current Budget** — reads `Incomes!G`, `Incomes!H` (holds the chart)
+- [x] **FRC Current Budget** — rebuilt on the `Incomes` and `Expenses` queries,
+      planned-spend-led. Still holds the chart, still never opened by tooling.
 - [ ] **Sponsors** — reads `Incomes!D`
 
 Until Cash Flow and Tax Purposes are done there are two payment ledgers, and
@@ -92,14 +155,13 @@ is stale rather than wrong-but-trusted, and should be read that way.
 
 ## Still on the old sheets
 
-`Cash Flow`, `Tax Purposes`, `FRC Current Budget` and `Sponsors` still read the
-**old** `Incomes` sheet inside the analysis workbook — not the data workbook:
+`Cash Flow`, `Tax Purposes` and `Sponsors` still read the **old** `Incomes`
+sheet inside the analysis workbook — not the data workbook:
 
 | Sheet | Reads |
 |---|---|
 | Cash Flow | `Incomes!M`, `Incomes!O`, `Incomes!D`, `Incomes!K` |
 | Tax Purposes | `Incomes!P` |
-| FRC Current Budget | `Incomes!G`, `Incomes!H` |
 | Sponsors | `Incomes!D` |
 
 So there are two payment ledgers until those are migrated, and the old one is

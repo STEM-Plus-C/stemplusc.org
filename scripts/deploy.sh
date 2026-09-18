@@ -71,6 +71,31 @@ if [ ! -f dist/index.html ]; then
   exit 1
 fi
 
+# ── Never publish internal docs ─────────────────────────────────────────────
+# docs/ holds internal material — design specs, the redesign gameplan, a
+# colour palette. It is tracked in git deliberately, but it is not site
+# content and has no business on a public web server.
+#
+# It sits outside src/ and public/, so Astro does not copy it and this check
+# should never fire. It exists for the day someone moves a document into
+# public/ to "make it easy to link", which is the only realistic way an
+# internal file reaches stemplusc.org/docs/.
+#
+# A refusal rather than an rsync --exclude, for two reasons: an exclude would
+# hide the mistake and leave the build quietly wrong, and excluded paths are
+# protected from --delete, so a stray docs/ already on the server would
+# survive every future deploy instead of being cleaned up.
+if [ -e dist/docs ]; then
+  echo ""
+  echo "Build output contains dist/docs — refusing to deploy."
+  echo ""
+  echo "docs/ is internal material and must never reach the live site."
+  echo "Something under src/ or public/ is now emitting it; find and remove"
+  echo "that, then deploy again."
+  echo ""
+  exit 1
+fi
+
 # ── Preview deletions ───────────────────────────────────────────────────────
 echo ""
 echo "Checking what would be removed from the server…"
