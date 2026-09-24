@@ -240,6 +240,16 @@ const sendOnly = has('send');
  * `--draft --resend <roster>` would swallow the roster path and leave the
  * script with no roster — a silent misfire rather than an error.
  */
+/**
+ * --remind             nudge everyone whose packet is overdue
+ * --remind TDS-27-009  nudge just that one, cooldown or not
+ *
+ * Same id-shaped-value rule as --resend, for the same reason.
+ */
+const remindArg = val('remind', null);
+const remindIds = remindArg && /^TD[SJ]-\d+-\d+$/i.test(remindArg) ? [remindArg.toUpperCase()] : [];
+const remindAll = has('remind') && remindIds.length === 0;
+const remindOnly = has('remind');
 const resendArg = val('resend', null);
 const resendIds = resendArg && /^TD[SJ]-\d+-\d+$/i.test(resendArg) ? [resendArg.toUpperCase()] : [];
 const resendAll = has('resend') && resendIds.length === 0;
@@ -255,7 +265,8 @@ const linkId = val('link', null);
 // path. Miss one here and rosterPath silently becomes that flag's argument.
 const VALUE_FLAGS = ['--state', '--mark-signed', '--mark-emailed', '--set-email', '--set-start', '--reserve', '--link',
   // Only consumes a value when that value was a participant id; see above.
-  ...(resendIds.length ? ['--resend'] : [])];
+  ...(resendIds.length ? ['--resend'] : []),
+  ...(remindIds.length ? ['--remind'] : [])];
 const rosterPath = argv.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(argv[i - 1]));
 
 // These manage the ledger and never read a roster.
@@ -604,6 +615,62 @@ function packetEmail({ team, participantId, student, guardian, link }) {
         `than have a family guess.`,
     },
     { type: 'p', text: `Welcome to the Tie Dye family.` },
+    { type: 'signoff', signature: cfg.signature },
+  ];
+
+  return {
+    subject,
+    body: renderText(blocks),
+    html: renderHtml(blocks, { participantId, subject }),
+    to: guardian.email,
+    participantId,
+  };
+}
+
+/**
+ * The nudge for a packet that went out and never came back.
+ *
+ * Deliberately not a re-send of the welcome: a family who reads the same
+ * "Welcome to the team" email a fortnight later learns nothing from it except
+ * that nobody is paying attention. This says the one thing that is actually
+ * true — we noticed, and we would rather ask than assume.
+ *
+ * It carries no personal detail about the student. A generated line pretending
+ * to remember what someone did in the shop is worse than no line at all, so
+ * anything of that kind belongs in a mail you write yourself.
+ */
+function reminderEmail({ team, participantId, student, guardian, link, sentAt }) {
+  const cfg = TEAMS[team];
+  const kid = student.first || student.legalFirst;
+  const parent = guardian.legalFirst;
+  const when = new Date(sentAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+  const subject = `${cfg.label} — finishing ${kid}'s registration packet`;
+
+  const blocks = [
+    { type: 'p', text: `Hi ${parent},` },
+    {
+      type: 'p',
+      text:
+        `I sent our registration packet over on ${when} and it hasn't come back yet. I wanted to ` +
+        `check it actually reached you rather than assume — mail from our domain does sometimes ` +
+        `land in a spam folder.`,
+    },
+    { type: 'cta', href: link, label: `Complete ${kid}'s packet` },
+    {
+      type: 'p',
+      text:
+        `It's the team agreement and the consent and release forms — about five minutes. A parent ` +
+        `or guardian completes it, and ${kid} needs to be with you at the end to sign their own ` +
+        `acknowledgment of our safety rules.`,
+    },
+    {
+      type: 'p',
+      text:
+        `Nothing is wrong and there's no deadline pressure here; I just don't want it sitting ` +
+        `unseen in a folder.`,
+    },
+    { type: 'p', text: `Any questions at all, just reply here or give me a call.` },
     { type: 'signoff', signature: cfg.signature },
   ];
 
@@ -1367,6 +1434,120 @@ if (previewOnly) {
 //
 // Both use exactly what --email prints. packetEmail() stays the single copy of
 // the message, so what a family receives cannot drift from what you reviewed.
+// ---------------------------------------------------------------- remind
+//
+// A packet that went out and never came back. The pipeline already reports
+// these under "Needs attention"; this is the flag that does something about
+// them without re-sending the welcome.
+//
+// Seven days, not the three that put a family on the report. Three days is the
+// right moment for *you* to notice; it is too soon to imply a family is late.
+const REMIND_AFTER_DAYS = 7;
+// A second nudge inside a week is nagging, so a reminded family goes quiet for
+// one. Naming an id overrides it — that is a deliberate act, not a sweep.
+const REMIND_EVERY_DAYS = 7;
+
+if (remindOnly) {
+  if (sendOnly || draftOnly) {
+    console.error('\n--remind is its own send; do not combine it with --send or --draft.\n');
+    process.exit(1);
+  }
+  if (!formId) {
+    console.error(`\n${cfg.formEnv} is not set — cannot build packet links.\n`);
+    process.exit(1);
+  }
+  if (!cfg.signature) {
+    console.error(`\n${cfg.label} has no coach signature set, so these would go out signed by\nthe wrong person.\n`);
+    process.exit(1);
+  }
+
+  const { createDraft, sendMail, graphEnv } = await import('./graph-mail.mjs');
+  const sender = commit ? graphEnv().sender : process.env.MS_SENDER || '(MS_SENDER not set)';
+  const mailbox = cfg.mailbox || sender;
+  const replyTo = [cfg.signature.email];
+  // Same rule as the packet: a reminder sent *as* a coach who never read it is
+  // their name on mail they have not seen. Draft it for them instead.
+  const foreign = Boolean(cfg.mailbox) && cfg.mailbox.toLowerCase() !== sender.toLowerCase();
+
+  const days = (iso) => Math.floor((Date.now() - Date.parse(iso)) / 86400000);
+  let done = 0, skipped = 0, failed = 0;
+
+  for (const s of accepted) {
+    const entry = state.participants[String(s.PeopleID)];
+    if (!entry) continue;
+    const { student, guardian } = people(s);
+    const who = `${entry.participantId} ${student.legalFirst} ${student.last}`;
+    const targeted = remindIds.includes(entry.participantId);
+    if (!targeted && !remindAll) continue;
+
+    const sentAt = entry.packetSentAt || entry.packetDraftedAt;
+    // Every skip says why. A silent sweep that nudges nobody looks identical to
+    // one that failed, and the whole point of this flag is knowing it ran.
+    if (!sentAt) {
+      console.log(`  skip   ${who} — no packet has gone out yet (--send first)`);
+      skipped++;
+      continue;
+    }
+    if (entry.signedAt) {
+      console.log(`  skip   ${who} — already signed`);
+      skipped++;
+      continue;
+    }
+    if (!guardian.email) {
+      console.log(`  skip   ${who} — no guardian email in FIRST`);
+      skipped++;
+      continue;
+    }
+    if (!targeted && days(sentAt) < REMIND_AFTER_DAYS) {
+      console.log(`  skip   ${who} — packet sent ${days(sentAt)} day(s) ago, under ${REMIND_AFTER_DAYS}`);
+      skipped++;
+      continue;
+    }
+    if (!targeted && entry.remindedAt && days(entry.remindedAt) < REMIND_EVERY_DAYS) {
+      console.log(`  skip   ${who} — reminded ${days(entry.remindedAt)} day(s) ago (--remind ${entry.participantId} to repeat)`);
+      skipped++;
+      continue;
+    }
+
+    const link = packetLink({ formId, participantId: entry.participantId, student, guardian, team });
+    const mail = reminderEmail({ team, participantId: entry.participantId, student, guardian, link, sentAt });
+
+    if (!commit) {
+      console.log(`  would ${foreign ? 'draft' : 'remind'} ${who} → ${mail.to} (packet sent ${days(sentAt)} days ago)`);
+      continue;
+    }
+
+    try {
+      if (foreign) {
+        const draft = await createDraft({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        entry.remindedVia = 'drafted';
+        console.log(`  draft  ${who} → ${mail.to}`);
+        console.log(`         ${draft.webLink}`);
+      } else {
+        await sendMail({ mailbox, replyTo, to: mail.to, cc: cfg.cc, subject: mail.subject, body: mail.body, html: mail.html });
+        entry.remindedVia = 'sent';
+        console.log(`  sent   ${who} → ${mail.to}`);
+      }
+      entry.remindedAt = new Date().toISOString();
+      entry.reminderCount = (entry.reminderCount ?? 0) + 1;
+      done++;
+      // Per family, for the same reason --send does it: a crash halfway must
+      // not re-nudge the families already reminded.
+      saveState(state);
+    } catch (err) {
+      failed++;
+      console.log(`  FAIL   ${who} → ${mail.to}: ${err.message}`);
+    }
+  }
+
+  console.log(
+    commit
+      ? `\n${done} reminded, ${skipped} skipped, ${failed} failed\n`
+      : `\nDry run — pass --commit to send.\n`
+  );
+  process.exit(failed ? 1 : 0);
+}
+
 if (draftOnly || sendOnly) {
   if (draftOnly && sendOnly) {
     console.error('\n--draft and --send are two ways to do the same job; pick one.\n');

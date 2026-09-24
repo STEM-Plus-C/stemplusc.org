@@ -45,6 +45,7 @@ set -a; source .env; set +a; node scripts/onboarding/onboard.mjs <roster> [flags
 | 3 | `--set-email <ID>:<student\|parent>=<addr>` | Address corrections. Requires step 2. Writes immediately — **no `--commit`**, unlike every other writing flag |
 | 4 | `--preview` | Writes an HTML file and prints its path. Nothing leaves the mailbox |
 | 5 | `--send --commit` | Samurai. Jedi uses `--draft --commit`, then `--check-sent` |
+| 5b | `--remind [ID]` | Nudges packets 7+ days overdue. Its own message, not a re-send of the welcome |
 | 6 | `--commit` | Records signatures, adds people to Slack, posts the welcome |
 
 The team is read from the roster's `TeamType` (FTC → Jedi, else Samurai), not
@@ -81,6 +82,17 @@ Fix with step 3. The override lives in the ledger, wins wherever that address
 is used, and is announced in every run that applies it. It does **not** change
 the greeting, which is built from FIRST's guardian fields — so an override
 alone can still address the wrong parent by name.
+
+## Chasing is not re-sending
+
+`--resend` repeats the original welcome email **and overwrites
+`packetSentAt`**, so the ledger forgets how long a family has been waiting.
+Reach for `--remind` instead: a shorter message, its own `remindedAt` stamp,
+and a 7-day cooldown so a weekly sweep never nags.
+
+Reminder copy carries **no personal detail about the student** — a generated
+line pretending to remember what someone did in the shop is worse than none.
+When a family deserves that, write it yourself and use `--links` for the URL.
 
 ## Gotchas
 

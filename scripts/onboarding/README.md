@@ -32,6 +32,7 @@ records each packet, and a repeat run skips anyone who already has theirs.
 | 3 | Assign participant ids | `onboard.mjs <roster> --seed --commit` |
 | 4 | Review the packets — opens a browser tab | `onboard.mjs <roster> --preview` |
 | 5 | Send them — **differs per team, see below** | |
+| 5b | Chase a packet that went quiet | `onboard.mjs <roster> --remind --commit` |
 | 6 | After families submit: record + add to Slack | `onboard.mjs <roster> --commit` |
 
 Run step 6 periodically even when nobody is pending — it surfaces new FIRST
@@ -56,6 +57,40 @@ node scripts/onboarding/onboard.mjs <roster> --check-sent       # did he send th
 mailbox means nobody can see whether they pressed send, and a family waiting a
 week on a packet still sitting in Drafts looks exactly like a family ignoring
 one. It asks his mailbox directly and confirms against Sent Items.
+
+### When a packet goes quiet
+
+A packet that went out and never came back is the ordinary case, not a
+problem: families are busy and a registration form is easy to mean to do.
+
+```bash
+node scripts/onboarding/onboard.mjs <roster> --remind          # who is overdue
+node scripts/onboarding/onboard.mjs <roster> --remind --commit # nudge them
+```
+
+**This is not a re-send of the welcome.** `--resend` repeats the original
+"Welcome to the team" email, which a family reading it a fortnight later learns
+nothing from except that nobody is paying attention — and it overwrites
+`packetSentAt`, so the ledger forgets how long they have actually been waiting.
+`--remind` sends a different, shorter message that says the true thing: we
+noticed, and we would rather ask than assume it arrived.
+
+**Two thresholds, both deliberate.** A family lands on the "Needs attention"
+report after **3 days**, which is the right moment for *you* to notice. A
+reminder does not go out until **7**, because three days is too soon to imply
+a family is late. After a nudge they go quiet for 7 more, so a weekly sweep
+never nags. Naming an id — `--remind TDS-27-0NN` — overrides both, since that
+is a deliberate act rather than a sweep.
+
+**Spam is the likeliest explanation**, not indifference. The reminder says so
+in as many words, which gives a family who never saw the first one an easy,
+face-saving way to say so.
+
+The reminder deliberately carries **no personal detail about the student**. A
+generated line pretending to remember what someone did in the shop is worse
+than no line at all. When a family deserves that — a season already paid for,
+an apology owed, a student you want to say something true about — write it
+yourself; `--links` gives you the packet URL to paste in.
 
 ### Where this stands
 
@@ -110,6 +145,7 @@ change anything.
 | `--draft` | Leave the email in the team coach's Drafts, for them to send |
 | `--send` | Deliver it, keeping a copy in Sent Items |
 | `--resend [id]` | Email a family whose packet the ledger already records; bare, or one id |
+| `--remind [id]` | Nudge families whose packet is 7+ days overdue; bare, or one id |
 | `--mark-emailed <id>` | Record a packet sent outside this script, so it is not sent twice |
 | `--check-sent` | Ask whether drafts left a coach's mailbox; `--commit` records the send |
 | `--links` | Print just the packet URLs, for a mail merge |
